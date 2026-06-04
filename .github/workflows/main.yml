@@ -29,10 +29,10 @@ jobs:
           rm -rf app-source
           mkdir -p app-source
 
-          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v8-autostart-fix*.zip" -type f | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v9-final*.zip" -type f | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v8-autostart-fix*.zip"
+            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v9-final*.zip"
             echo "请确认源码包已经上传到仓库根目录"
             find . -maxdepth 2 -name "*.zip" -type f -print
             exit 1
@@ -59,8 +59,8 @@ jobs:
           cd "$PROJECT_DIR"
 
           cat > version.properties <<'EOF'
-          versionName=2.2.0-v8-autostart-fix
-          versionCode=8
+          versionName=2.2.0-v9-final
+          versionCode=9
           EOF
 
           keytool -genkeypair \
@@ -133,6 +133,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-entry-unified-battery-buttons-v8-autostart-fix-apk
+          name: SmsForwarder-entry-unified-battery-buttons-v9-final-apk
           path: |
             **/build/outputs/apk/debug/*.apk
