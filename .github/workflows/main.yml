@@ -29,10 +29,10 @@ jobs:
           rm -rf app-source
           mkdir -p app-source
 
-          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v16-permission-battery*.zip" -type f | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v16-permission-battery-fix*.zip" -type f | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v16-permission-battery*.zip"
+            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v16-permission-battery-fix*.zip"
             echo "请确认源码包已经上传到仓库根目录"
             find . -maxdepth 2 -name "*.zip" -type f -print
             exit 1
@@ -59,7 +59,7 @@ jobs:
           cd "$PROJECT_DIR"
 
           cat > version.properties <<'EOF'
-          versionName=2.2.0-v16-permission-battery
+          versionName=2.2.0-v16-permission-battery-fix
           versionCode=16
           EOF
 
@@ -135,6 +135,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-entry-unified-battery-buttons-v16-permission-battery-apk
+          name: SmsForwarder-entry-unified-battery-buttons-v16-permission-battery-fix-apk
           path: |
             **/build/outputs/apk/debug/*.apk
