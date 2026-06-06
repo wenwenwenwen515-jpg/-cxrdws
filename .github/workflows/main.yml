@@ -54,7 +54,7 @@ jobs:
           echo "找到项目目录：$PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
 
-      - name: Force fix version and release signing
+      - name: Prepare version and release signing
         run: |
           cd "$PROJECT_DIR"
 
@@ -63,11 +63,12 @@ jobs:
           versionCode=25
           EOF
 
-          rm -f app/release.keystore
+          mkdir -p keystore
+          rm -f keystore/release.keystore
 
           keytool -genkeypair \
             -v \
-            -keystore app/release.keystore \
+            -keystore keystore/release.keystore \
             -storepass android \
             -alias androidreleasekey \
             -keypass android \
@@ -76,61 +77,12 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Release,O=Android,C=US"
 
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          p = Path("app/build.gradle")
-          text = p.read_text()
-
-          signing_block = """
-              release {
-                  keyAlias 'androidreleasekey'
-                  keyPassword 'android'
-                  storeFile file('release.keystore')
-                  storePassword 'android'
-              }"""
-
-          if "signingConfigs" in text:
-              text = re.sub(
-                  r"signingConfigs\s*\{.*?\n\s*\}",
-                  "signingConfigs {\n" + signing_block + "\n    }",
-                  text,
-                  count=1,
-                  flags=re.S
-              )
-          else:
-              text = text.replace(
-                  "android {",
-                  "android {\n    signingConfigs {\n" + signing_block + "\n    }\n",
-                  1
-              )
-
-          release_block = """release {
-                  minifyEnabled true
-                  shrinkResources true
-                  signingConfig signingConfigs.release
-                  proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-              }"""
-
-          if re.search(r"release\s*\{", text):
-              text = re.sub(
-                  r"release\s*\{.*?\n\s*\}",
-                  release_block,
-                  text,
-                  count=1,
-                  flags=re.S
-              )
-          else:
-              text = re.sub(
-                  r"buildTypes\s*\{",
-                  "buildTypes {\n        " + release_block,
-                  text,
-                  count=1
-              )
-
-          p.write_text(text)
-          PY
+          cat > keystore/keystore.properties <<'EOF'
+          keyAlias=androidreleasekey
+          keyPassword=android
+          storeFile=../keystore/release.keystore
+          storePassword=android
+          EOF
 
       - name: Grant execute permission for Gradle
         run: |
@@ -145,7 +97,7 @@ jobs:
           BUILD_CODE=${PIPESTATUS[0]}
 
           echo "========== 关键错误开始 =========="
-          grep -n -i -A 25 -B 10 "what went wrong\|error:\|failed\|cannot find symbol\|manifest merger failed\|compilation failed\|unsupported class file\|signingconfig\|storefile\|keystore\|toInteger\|proguard\|r8" build.log || true
+          grep -n -i -A 30 -B 10 "what went wrong\|error:\|failed\|cannot find symbol\|manifest merger failed\|compilation failed\|unsupported class file\|signingconfig\|storefile\|keystore\|toInteger\|proguard\|r8" build.log || true
           echo "========== 关键错误结束 =========="
 
           exit $BUILD_CODE
