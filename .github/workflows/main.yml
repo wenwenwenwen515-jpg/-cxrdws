@@ -29,11 +29,10 @@ jobs:
           rm -rf app-source
           mkdir -p app-source
 
-          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v29-permission-prompt-spacing*.zip" -type f | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v29-permission-prompt-spacing-fix*.zip" -type f | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v29-permission-prompt-spacing*.zip"
-            echo "请确认源码包已经上传到仓库根目录"
+            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v29-permission-prompt-spacing-fix*.zip"
             find . -maxdepth 2 -name "*.zip" -type f -print
             exit 1
           fi
@@ -59,7 +58,7 @@ jobs:
           cd "$PROJECT_DIR"
 
           cat > version.properties <<'EOF'
-          versionName=2.2.0-v29-permission-prompt-spacing
+          versionName=2.2.0-v29-permission-prompt-spacing-fix
           versionCode=29
           EOF
 
@@ -118,7 +117,7 @@ jobs:
           BUILD_CODE=${PIPESTATUS[0]}
 
           echo "========== 关键错误开始 =========="
-          grep -n -i -A 30 -B 10 "what went wrong\|error:\|failed\|cannot find symbol\|manifest merger failed\|compilation failed\|unsupported class file\|signingconfig\|storefile\|keystore\|toInteger\|unexpected input" build.log || true
+          grep -n -i -A 30 -B 10 "what went wrong\|error:\|failed\|cannot find symbol\|manifest merger failed\|compilation failed\|unsupported class file\|signingconfig\|storefile\|keystore\|toInteger\|unexpected input\|duplicate attribute" build.log || true
           echo "========== 关键错误结束 =========="
 
           exit $BUILD_CODE
@@ -135,6 +134,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v29-permission-prompt-spacing-apk
+          name: SmsForwarder-v29-permission-prompt-spacing-fix-apk
           path: |
             **/build/outputs/apk/debug/*.apk
