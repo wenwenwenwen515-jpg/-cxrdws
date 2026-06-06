@@ -29,10 +29,11 @@ jobs:
           rm -rf app-source
           mkdir -p app-source
 
-          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v25-clean-oppo-small-fix*.zip" -type f | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v26-stable-webhook-bark-oppo-permission*.zip" -type f | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "没有找到 v25-clean-oppo-small-fix 源码包"
+            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v26-stable-webhook-bark-oppo-permission*.zip"
+            echo "请确认源码包已经上传到仓库根目录"
             find . -maxdepth 2 -name "*.zip" -type f -print
             exit 1
           fi
@@ -53,50 +54,71 @@ jobs:
           echo "找到项目目录：$PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
 
-      - name: Prepare version and release signing
+      - name: Force fix version and debug signing
         run: |
           cd "$PROJECT_DIR"
 
           cat > version.properties <<'EOF'
-          versionName=2.2.0-v25-clean-oppo-small-fix
-          versionCode=25
+          versionName=2.2.0-v26-stable-webhook-bark-oppo-permission
+          versionCode=26
           EOF
 
-          mkdir -p keystore
-          rm -f keystore/release.keystore
+          rm -f app/debug.keystore
 
           keytool -genkeypair \
             -v \
-            -keystore keystore/release.keystore \
+            -keystore app/debug.keystore \
             -storepass android \
-            -alias androidreleasekey \
+            -alias androiddebugkey \
             -keypass android \
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -dname "CN=Android Release,O=Android,C=US"
+            -dname "CN=Android Debug,O=Android,C=US"
 
-          cat > keystore/keystore.properties <<'EOF'
-          keyAlias=androidreleasekey
-          keyPassword=android
-          storeFile=../keystore/release.keystore
-          storePassword=android
-          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("app/build.gradle")
+          text = p.read_text()
+
+          new_debug = """debug {
+                  keyAlias 'androiddebugkey'
+                  keyPassword 'android'
+                  storeFile file('debug.keystore')
+                  storePassword 'android'
+              }"""
+
+          text2, count = re.subn(
+              r"debug\s*\{[^{}]*\}",
+              new_debug,
+              text,
+              count=1,
+              flags=re.S
+          )
+
+          if count == 0:
+              print("替换失败：找不到 debug 签名块")
+              raise SystemExit(1)
+
+          p.write_text(text2)
+          PY
 
       - name: Grant execute permission for Gradle
         run: |
           cd "$PROJECT_DIR"
           chmod +x gradlew
 
-      - name: Build release APK
+      - name: Build debug APK
         run: |
           cd "$PROJECT_DIR"
           set +e
-          ./gradlew assembleRelease --stacktrace 2>&1 | tee build.log
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
           BUILD_CODE=${PIPESTATUS[0]}
 
           echo "========== 关键错误开始 =========="
-          grep -n -i -A 30 -B 10 "what went wrong\|error:\|failed\|cannot find symbol\|manifest merger failed\|compilation failed\|unsupported class file\|signingconfig\|storefile\|keystore\|toInteger\|proguard\|r8\|unexpected input" build.log || true
+          grep -n -i -A 30 -B 10 "what went wrong\|error:\|failed\|cannot find symbol\|manifest merger failed\|compilation failed\|unsupported class file\|signingconfig\|storefile\|keystore\|toInteger\|unexpected input" build.log || true
           echo "========== 关键错误结束 =========="
 
           exit $BUILD_CODE
@@ -113,6 +135,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v25-clean-oppo-small-fix-release-apk
+          name: SmsForwarder-v26-stable-webhook-bark-oppo-permission-apk
           path: |
-            **/build/outputs/apk/release/*.apk
+            **/build/outputs/apk/debug/*.apk
