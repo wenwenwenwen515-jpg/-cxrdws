@@ -29,10 +29,10 @@ jobs:
           rm -rf app-source
           mkdir -p app-source
 
-          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v33-oppo-autostart-app-page-permission-repeat*.zip" -type f | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v34-oppo-autostart-app-page-only*.zip" -type f | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v33-oppo-autostart-app-page-permission-repeat*.zip"
+            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v34-oppo-autostart-app-page-only*.zip"
             echo "请确认源码包已经上传到仓库根目录"
             find . -maxdepth 2 -name "*.zip" -type f -print
             exit 1
@@ -59,8 +59,8 @@ jobs:
           cd "$PROJECT_DIR"
 
           cat > version.properties <<'EOF'
-          versionName=2.2.0-v33-oppo-autostart-app-page-permission-repeat
-          versionCode=33
+          versionName=2.2.0-v34-oppo-autostart-app-page-only
+          versionCode=34
           EOF
 
           rm -f app/debug.keystore
@@ -135,6 +135,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v33-oppo-autostart-app-page-permission-repeat-apk
+          name: SmsForwarder-v34-oppo-autostart-app-page-only-apk
           path: |
             **/build/outputs/apk/debug/*.apk
