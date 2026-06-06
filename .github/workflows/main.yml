@@ -29,10 +29,10 @@ jobs:
           rm -rf app-source
           mkdir -p app-source
 
-          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v26-stable-webhook-bark-oppo-permission*.zip" -type f | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v27-oppo-permission-light*.zip" -type f | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v26-stable-webhook-bark-oppo-permission*.zip"
+            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v27-oppo-permission-light*.zip"
             echo "请确认源码包已经上传到仓库根目录"
             find . -maxdepth 2 -name "*.zip" -type f -print
             exit 1
@@ -59,8 +59,8 @@ jobs:
           cd "$PROJECT_DIR"
 
           cat > version.properties <<'EOF'
-          versionName=2.2.0-v26-stable-webhook-bark-oppo-permission
-          versionCode=26
+          versionName=2.2.0-v27-oppo-permission-light
+          versionCode=27
           EOF
 
           rm -f app/debug.keystore
@@ -135,6 +135,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v26-stable-webhook-bark-oppo-permission-apk
+          name: SmsForwarder-v27-oppo-permission-light-apk
           path: |
             **/build/outputs/apk/debug/*.apk
