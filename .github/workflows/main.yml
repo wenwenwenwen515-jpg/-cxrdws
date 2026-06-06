@@ -1,106 +1,140 @@
-项目修改要求:
-  版本: 安全测试版
-  功能名称: 默认SMS应用与延时清理提醒
+name: Build SmsForwarder APK
 
-  核心功能:
-    - 适配默认 SMS 应用
-    - 用户可以手动设置为默认 SMS 应用
-    - 用户可以开启/关闭延时清理提醒
-    - 用户可以设置清理时间，默认 2 分钟
-    - 收到短信后开始计时
-    - 到时间后弹出通知提醒用户清理
-    - 用户点击确认后删除本软件已处理/已转发短信
-    - 保留清理日志
+on:
+  workflow_dispatch:
 
-  不实现:
-    - 不后台静默自动删除短信
-    - 不自动清空所有短信
-    - 不自动删除验证码短信
-    - 不隐藏删除记录
-    - 不默认开启清理功能
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-  默认设置:
-    延时清理提醒: 关闭
-    默认清理时间: 2分钟
-    删除范围: 仅本软件已处理/已转发短信
-    删除方式: 用户确认后删除
-    清理日志: 开启
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  页面新增:
-    - 默认短信应用状态
-    - 设置为默认 SMS 应用按钮
-    - 延时清理提醒开关
-    - 清理时间设置
-    - 立即清理已处理短信按钮
-    - 清理日志页面
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
 
-  时间选项:
-    - 30秒
-    - 1分钟
-    - 2分钟
-    - 5分钟
-    - 10分钟
-    - 自定义
+      - name: Show repository files
+        run: |
+          echo "当前仓库文件："
+          ls -la
+          echo "查找 zip 文件："
+          find . -maxdepth 2 -name "*.zip" -type f -print
 
-  权限:
-    - RECEIVE_SMS
-    - READ_SMS
-    - WRITE_SMS
-    - SEND_SMS
-    - READ_PHONE_STATE
-    - POST_NOTIFICATIONS
-    - FOREGROUND_SERVICE
+      - name: Unzip source
+        run: |
+          rm -rf app-source
+          mkdir -p app-source
 
-  AndroidManifest:
-    添加默认SMS应用组件:
-      - SmsReceiver
-      - MmsReceiver
-      - RespondViaMessageService
-      - ComposeSmsActivity
+          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v20-oppo-status-guide*.zip" -type f | head -n 1)
 
-  设置默认SMS应用:
-    action: android.provider.Telephony.ACTION_CHANGE_DEFAULT
-    extra:
-      android.provider.extra.DEFAULT_SMS_PACKAGE: 当前应用包名
+          if [ -z "$ZIP_FILE" ]; then
+            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v20-oppo-status-guide*.zip"
+            echo "请确认源码包已经上传到仓库根目录"
+            find . -maxdepth 2 -name "*.zip" -type f -print
+            exit 1
+          fi
 
-  收到短信流程:
-    - SmsReceiver 收到短信
-    - 保存短信基础记录:
-        - 短信ID
-        - 号码
-        - 内容摘要
-        - 接收时间
-        - 是否已转发
-        - 是否已处理
-    - 如果延时清理提醒已开启:
-        启动 WorkManager 延时任务
-    - 例如用户设置 2 分钟:
-        收到短信 2 分钟后发送通知
+          echo "找到源码包：$ZIP_FILE"
+          unzip -o "$ZIP_FILE" -d app-source
 
-  到时间后的提醒:
-    通知标题: 短信清理提醒
-    通知内容: 有短信已到清理时间，是否清理？
-    按钮:
-      - 确认清理
-      - 保留短信
+      - name: Locate Gradle project
+        run: |
+          PROJECT_DIR=$(find app-source -name "gradlew" -type f -exec dirname {} \; | head -n 1)
 
-  清理逻辑:
-    - 检查本软件是否仍是默认 SMS 应用
-    - 检查短信是否属于本软件记录的已处理短信
-    - 用户点击确认清理后才执行删除
-    - 删除后写入清理日志
-    - 如果用户点保留短信，则取消本次清理
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "没有找到 gradlew，说明源码包结构不对"
+            find app-source -maxdepth 4 -type f -o -type d
+            exit 1
+          fi
 
-  页面文案:
-    标题: 短信延时清理
-    说明: 开启后，收到短信并处理完成后，会在设定时间提醒你清理。删除前需要你确认。
-    当前设置: 收到短信 2 分钟后提醒清理
-    警告: 删除后无法恢复，请谨慎操作。
+          echo "找到项目目录：$PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
 
-  按钮文案:
-    - 设置为默认 SMS 应用
-    - 开启延时清理提醒
-    - 关闭延时清理提醒
-    - 设置清理时间
-    - 立即清理已处理短信
-    - 查看清理日志
+      - name: Force fix version and debug signing
+        run: |
+          cd "$PROJECT_DIR"
+
+          cat > version.properties <<'EOF'
+          versionName=2.2.0-v20-oppo-status-guide
+          versionCode=20
+          EOF
+
+          rm -f app/debug.keystore
+
+          keytool -genkeypair \
+            -v \
+            -keystore app/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("app/build.gradle")
+          text = p.read_text()
+
+          new_debug = """debug {
+                  keyAlias 'androiddebugkey'
+                  keyPassword 'android'
+                  storeFile file('debug.keystore')
+                  storePassword 'android'
+              }"""
+
+          text2, count = re.subn(
+              r"debug\s*\{[^{}]*\}",
+              new_debug,
+              text,
+              count=1,
+              flags=re.S
+          )
+
+          if count == 0:
+              print("替换失败：找不到 debug 签名块")
+              raise SystemExit(1)
+
+          p.write_text(text2)
+          PY
+
+      - name: Grant execute permission for Gradle
+        run: |
+          cd "$PROJECT_DIR"
+          chmod +x gradlew
+
+      - name: Build debug APK
+        run: |
+          cd "$PROJECT_DIR"
+          set +e
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
+          BUILD_CODE=${PIPESTATUS[0]}
+
+          echo "========== 关键错误开始 =========="
+          grep -n -i -A 25 -B 10 "what went wrong\|error:\|failed\|cannot find symbol\|manifest merger failed\|compilation failed\|unsupported class file\|signingconfig\|storefile\|keystore\|toInteger" build.log || true
+          echo "========== 关键错误结束 =========="
+
+          exit $BUILD_CODE
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: |
+            **/build.log
+
+      - name: Upload APK artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmsForwarder-v20-oppo-status-guide-apk
+          path: |
+            **/build/outputs/apk/debug/*.apk
