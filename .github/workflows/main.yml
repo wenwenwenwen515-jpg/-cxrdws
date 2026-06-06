@@ -29,10 +29,10 @@ jobs:
           rm -rf app-source
           mkdir -p app-source
 
-          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v27-oppo-permission-light*.zip" -type f | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v29-permission-prompt-spacing*.zip" -type f | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v27-oppo-permission-light*.zip"
+            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v29-permission-prompt-spacing*.zip"
             echo "请确认源码包已经上传到仓库根目录"
             find . -maxdepth 2 -name "*.zip" -type f -print
             exit 1
@@ -59,8 +59,8 @@ jobs:
           cd "$PROJECT_DIR"
 
           cat > version.properties <<'EOF'
-          versionName=2.2.0-v27-oppo-permission-light
-          versionCode=27
+          versionName=2.2.0-v29-permission-prompt-spacing
+          versionCode=29
           EOF
 
           rm -f app/debug.keystore
@@ -135,6 +135,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v27-oppo-permission-light-apk
+          name: SmsForwarder-v29-permission-prompt-spacing-apk
           path: |
             **/build/outputs/apk/debug/*.apk
