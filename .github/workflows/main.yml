@@ -29,10 +29,10 @@ jobs:
           rm -rf app-source
           mkdir -p app-source
 
-          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v24-bound-push-config*.zip" -type f | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v25-clean-oppo-small*.zip" -type f | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v24-bound-push-config*.zip"
+            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v25-clean-oppo-small*.zip"
             echo "请确认源码包已经上传到仓库根目录"
             find . -maxdepth 2 -name "*.zip" -type f -print
             exit 1
@@ -54,27 +54,27 @@ jobs:
           echo "找到项目目录：$PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
 
-      - name: Force fix version and debug signing
+      - name: Force fix version and release signing
         run: |
           cd "$PROJECT_DIR"
 
           cat > version.properties <<'EOF'
-          versionName=2.2.0-v24-bound-push-config
-          versionCode=24
+          versionName=2.2.0-v25-clean-oppo-small
+          versionCode=25
           EOF
 
-          rm -f app/debug.keystore
+          rm -f app/release.keystore
 
           keytool -genkeypair \
             -v \
-            -keystore app/debug.keystore \
+            -keystore app/release.keystore \
             -storepass android \
-            -alias androiddebugkey \
+            -alias androidreleasekey \
             -keypass android \
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+            -dname "CN=Android Release,O=Android,C=US"
 
           python3 - <<'PY'
           from pathlib import Path
@@ -83,26 +83,53 @@ jobs:
           p = Path("app/build.gradle")
           text = p.read_text()
 
-          new_debug = """debug {
-                  keyAlias 'androiddebugkey'
+          signing_block = """
+              release {
+                  keyAlias 'androidreleasekey'
                   keyPassword 'android'
-                  storeFile file('debug.keystore')
+                  storeFile file('release.keystore')
                   storePassword 'android'
               }"""
 
-          text2, count = re.subn(
-              r"debug\s*\{[^{}]*\}",
-              new_debug,
-              text,
-              count=1,
-              flags=re.S
-          )
+          if "signingConfigs" in text:
+              text = re.sub(
+                  r"signingConfigs\s*\{.*?\n\s*\}",
+                  "signingConfigs {\n" + signing_block + "\n    }",
+                  text,
+                  count=1,
+                  flags=re.S
+              )
+          else:
+              text = text.replace(
+                  "android {",
+                  "android {\n    signingConfigs {\n" + signing_block + "\n    }\n",
+                  1
+              )
 
-          if count == 0:
-              print("替换失败：找不到 debug 签名块")
-              raise SystemExit(1)
+          release_block = """release {
+                  minifyEnabled true
+                  shrinkResources true
+                  signingConfig signingConfigs.release
+                  proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+              }"""
 
-          p.write_text(text2)
+          if re.search(r"release\s*\{", text):
+              text = re.sub(
+                  r"release\s*\{.*?\n\s*\}",
+                  release_block,
+                  text,
+                  count=1,
+                  flags=re.S
+              )
+          else:
+              text = re.sub(
+                  r"buildTypes\s*\{",
+                  "buildTypes {\n        " + release_block,
+                  text,
+                  count=1
+              )
+
+          p.write_text(text)
           PY
 
       - name: Grant execute permission for Gradle
@@ -110,15 +137,15 @@ jobs:
           cd "$PROJECT_DIR"
           chmod +x gradlew
 
-      - name: Build debug APK
+      - name: Build release APK
         run: |
           cd "$PROJECT_DIR"
           set +e
-          ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
+          ./gradlew assembleRelease --stacktrace 2>&1 | tee build.log
           BUILD_CODE=${PIPESTATUS[0]}
 
           echo "========== 关键错误开始 =========="
-          grep -n -i -A 25 -B 10 "what went wrong\|error:\|failed\|cannot find symbol\|manifest merger failed\|compilation failed\|unsupported class file\|signingconfig\|storefile\|keystore\|toInteger" build.log || true
+          grep -n -i -A 25 -B 10 "what went wrong\|error:\|failed\|cannot find symbol\|manifest merger failed\|compilation failed\|unsupported class file\|signingconfig\|storefile\|keystore\|toInteger\|proguard\|r8" build.log || true
           echo "========== 关键错误结束 =========="
 
           exit $BUILD_CODE
@@ -135,6 +162,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v24-bound-push-config-apk
+          name: SmsForwarder-v25-clean-oppo-small-release-apk
           path: |
-            **/build/outputs/apk/debug/*.apk
+            **/build/outputs/apk/release/*.apk
