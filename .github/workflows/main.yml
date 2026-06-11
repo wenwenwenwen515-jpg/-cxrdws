@@ -1,4 +1,4 @@
-name: Build SmsForwarder v40 Icons Updated APK
+name: Build SmsForwarder v41 Rechecked Small APK
 
 on:
   workflow_dispatch:
@@ -30,24 +30,19 @@ jobs:
           distribution: temurin
           java-version: 11
 
-      - name: Force locate v40 source
+      - name: Force locate v41 source
         run: |
           set -e
-
           echo "当前仓库文件："
           find . -maxdepth 3 -type f | sort
-
           PROJECT_DIR=""
-          mkdir -p ./forced-v40-source
-
+          mkdir -p ./forced-v41-source
           SOURCE_ZIP=""
-
-          for f in *v40*.zip *V40*.zip */*v40*.zip */*V40*.zip *v39*.zip *V39*.zip */*v39*.zip */*V39*.zip *v38*.zip *V38*.zip */*v38*.zip */*V38*.zip *v37*.zip *V37*.zip */*v37*.zip */*V37*.zip *v36*.zip *V36*.zip */*v36*.zip */*V36*.zip; do
+          for f in *v41*.zip *V41*.zip */*v41*.zip */*V41*.zip *v40*.zip *V40*.zip */*v40*.zip */*V40*.zip *v39*.zip *V39*.zip */*v39*.zip */*V39*.zip; do
             [ -f "$f" ] || continue
             SOURCE_ZIP="$f"
             break
           done
-
           if [ -z "$SOURCE_ZIP" ]; then
             for f in *.zip */*.zip */*/*.zip; do
               [ -f "$f" ] || continue
@@ -55,17 +50,14 @@ jobs:
               break
             done
           fi
-
           if [ -n "$SOURCE_ZIP" ]; then
             echo "强制使用源码 zip：$SOURCE_ZIP"
-            unzip -o "$SOURCE_ZIP" -d ./forced-v40-source
-
-            FOUND_GRADLEW=$(find ./forced-v40-source -name gradlew -type f | head -n 1 || true)
+            unzip -o "$SOURCE_ZIP" -d ./forced-v41-source
+            FOUND_GRADLEW=$(find ./forced-v41-source -name gradlew -type f | head -n 1 || true)
             if [ -z "$FOUND_GRADLEW" ]; then
               echo "错误：解压后没有找到 gradlew，这个 zip 不是完整 Android 源码。"
               exit 1
             fi
-
             PROJECT_DIR=$(dirname "$FOUND_GRADLEW")
           else
             echo "没有找到 zip，尝试使用仓库里的源码。"
@@ -78,12 +70,10 @@ jobs:
               fi
             fi
           fi
-
           if [ -z "$PROJECT_DIR" ]; then
             echo "错误：没有找到 Android 项目 gradlew。"
             exit 1
           fi
-
           echo "找到项目目录：$PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
@@ -91,13 +81,11 @@ jobs:
         run: |
           set -e
           cd "$PROJECT_DIR"
-
           ASSETS_DIR=$(find . -path "*/src/main/assets" -type d | head -n 1 || true)
           if [ -z "$ASSETS_DIR" ]; then
             ASSETS_DIR="./app/src/main/assets"
             mkdir -p "$ASSETS_DIR"
           fi
-
           CONFIG_FILE="$ASSETS_DIR/push_config.json"
           if [ ! -f "$CONFIG_FILE" ] || ! grep -q "默认Bark" "$CONFIG_FILE"; then
             cat > "$CONFIG_FILE" <<'EOF'
@@ -124,13 +112,11 @@ jobs:
           }
           EOF
           fi
-
           [ -f "$ASSETS_DIR/tutorial_xiaomi.txt" ] || printf '小米教程待填写。\n' > "$ASSETS_DIR/tutorial_xiaomi.txt"
           [ -f "$ASSETS_DIR/tutorial_huawei.txt" ] || printf '华为教程待填写。\n' > "$ASSETS_DIR/tutorial_huawei.txt"
           [ -f "$ASSETS_DIR/tutorial_oppo.txt" ] || printf 'OPPO教程待填写。\n' > "$ASSETS_DIR/tutorial_oppo.txt"
           [ -f "$ASSETS_DIR/tutorial_vivo.txt" ] || printf 'vivo教程待填写。\n' > "$ASSETS_DIR/tutorial_vivo.txt"
           [ -f "$ASSETS_DIR/tutorial_common.txt" ] || printf '通用教程待填写。\n' > "$ASSETS_DIR/tutorial_common.txt"
-
           echo "push_config.json："
           cat "$CONFIG_FILE"
           echo "教程TXT文件："
@@ -140,12 +126,10 @@ jobs:
         run: |
           set -e
           cd "$PROJECT_DIR"
-
           mkdir -p keystore
           mkdir -p app/keystore
-
           keytool -genkeypair -v \
-            -keystore keystore/debug.keystore \
+            -keystore app/debug.keystore \
             -storepass android \
             -alias androiddebugkey \
             -keypass android \
@@ -153,25 +137,27 @@ jobs:
             -keysize 2048 \
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
-
-          cp keystore/debug.keystore app/debug.keystore || true
-          cp keystore/debug.keystore app/keystore/debug.keystore || true
-          cp keystore/debug.keystore debug.keystore || true
-
+          cp app/debug.keystore keystore/debug.keystore || true
+          cp app/debug.keystore app/keystore/debug.keystore || true
+          cp app/debug.keystore debug.keystore || true
+          cat > keystore/keystore.properties <<EOF
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=keystore/debug.keystore
+          storePassword=android
+          EOF
           cat > keystore.properties <<EOF
           keyAlias=androiddebugkey
           keyPassword=android
           storeFile=keystore/debug.keystore
           storePassword=android
           EOF
-
           cat > app/keystore.properties <<EOF
           keyAlias=androiddebugkey
           keyPassword=android
           storeFile=debug.keystore
           storePassword=android
           EOF
-
           cat > app/keystore/keystore.properties <<EOF
           keyAlias=androiddebugkey
           keyPassword=android
@@ -179,17 +165,24 @@ jobs:
           storePassword=android
           EOF
 
-      - name: Build Debug APK
+      - name: Build APK
         run: |
           set -e
           cd "$PROJECT_DIR"
           chmod +x ./gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease || ./gradlew assembleDebug
+
+      - name: Show APK size
+        run: |
+          set -e
+          cd "$PROJECT_DIR"
+          find app/build/outputs/apk -name "*.apk" -type f -exec ls -lh {} \;
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v40-icons-updated-apk
+          name: SmsForwarder-v41-rechecked-small-apk
           path: |
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
