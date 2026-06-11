@@ -1,4 +1,4 @@
-name: Build SmsForwarder v41 Rechecked Small APK
+name: Build SmsForwarder v41 Rechecked Small Fixed APK
 
 on:
   workflow_dispatch:
@@ -126,8 +126,15 @@ jobs:
         run: |
           set -e
           cd "$PROJECT_DIR"
+
+          rm -f app/debug.keystore
+          rm -f keystore/debug.keystore
+          rm -f app/keystore/debug.keystore
+          rm -f debug.keystore
+
           mkdir -p keystore
           mkdir -p app/keystore
+
           keytool -genkeypair -v \
             -keystore app/debug.keystore \
             -storepass android \
@@ -137,27 +144,32 @@ jobs:
             -keysize 2048 \
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
+
           cp app/debug.keystore keystore/debug.keystore || true
           cp app/debug.keystore app/keystore/debug.keystore || true
           cp app/debug.keystore debug.keystore || true
+
           cat > keystore/keystore.properties <<EOF
           keyAlias=androiddebugkey
           keyPassword=android
           storeFile=keystore/debug.keystore
           storePassword=android
           EOF
+
           cat > keystore.properties <<EOF
           keyAlias=androiddebugkey
           keyPassword=android
           storeFile=keystore/debug.keystore
           storePassword=android
           EOF
+
           cat > app/keystore.properties <<EOF
           keyAlias=androiddebugkey
           keyPassword=android
           storeFile=debug.keystore
           storePassword=android
           EOF
+
           cat > app/keystore/keystore.properties <<EOF
           keyAlias=androiddebugkey
           keyPassword=android
@@ -181,7 +193,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v41-rechecked-small-apk
+          name: SmsForwarder-v41-rechecked-small-fixed-apk
           path: |
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
