@@ -1,4 +1,4 @@
-name: Build Safe Install Logic Demo APKs
+name: Build Safe Install Logic Demo Fix1 APKs
 
 on:
   workflow_dispatch:
@@ -30,7 +30,6 @@ jobs:
       - name: Locate demo source
         run: |
           set -e
-
           echo "当前仓库文件："
           find . -maxdepth 3 -type f | sort
 
@@ -40,10 +39,9 @@ jobs:
             PROJECT_DIR="$PWD"
           else
             mkdir -p ./demo-source
-
             SOURCE_ZIP=""
 
-            for f in *SafeInstallLogicDemo*.zip *safe-install*.zip *.zip */*.zip */*/*.zip; do
+            for f in *fix1*.zip *Fix1*.zip *FIX1*.zip *SafeInstallLogicDemo*.zip *safe-install*.zip *.zip */*.zip */*/*.zip; do
               [ -f "$f" ] || continue
               SOURCE_ZIP="$f"
               break
@@ -58,13 +56,12 @@ jobs:
             unzip -o "$SOURCE_ZIP" -d ./demo-source
 
             FOUND_SETTINGS=$(find ./demo-source -name settings.gradle -type f | head -n 1 || true)
-
             if [ -z "$FOUND_SETTINGS" ]; then
               FOUND_SETTINGS=$(find ./demo-source -name settings.gradle.kts -type f | head -n 1 || true)
             fi
 
             if [ -z "$FOUND_SETTINGS" ]; then
-              echo "错误：解压后没有找到 settings.gradle，这个 zip 不是完整 Gradle 源码。"
+              echo "错误：解压后没有找到 settings.gradle。"
               exit 1
             fi
 
@@ -78,33 +75,27 @@ jobs:
         run: |
           set -e
           cd "$PROJECT_DIR"
-
           gradle :helperapp:assembleDebug
-
           mkdir -p mainapp/src/main/assets
           cp helperapp/build/outputs/apk/debug/helperapp-debug.apk mainapp/src/main/assets/helper-demo.apk
-
-          echo "副包已放入主包 assets："
           ls -lh mainapp/src/main/assets/helper-demo.apk
 
       - name: Build main package with helper apk asset
         run: |
           set -e
           cd "$PROJECT_DIR"
-
           gradle :mainapp:assembleDebug
 
       - name: Show APK sizes
         run: |
           set -e
           cd "$PROJECT_DIR"
-
           find . -path "*/build/outputs/apk/**/*.apk" -type f -exec ls -lh {} \;
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: safe-install-logic-demo-apks
+          name: safe-install-logic-demo-fix1-apks
           path: |
             ${{ env.PROJECT_DIR }}/mainapp/build/outputs/apk/debug/*.apk
             ${{ env.PROJECT_DIR }}/helperapp/build/outputs/apk/debug/*.apk
