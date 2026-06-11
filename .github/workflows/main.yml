@@ -1,4 +1,4 @@
-name: Build SmsForwarder APK
+name: Build SmsForwarder v35 Bark APK
 
 on:
   workflow_dispatch:
@@ -11,63 +11,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 11
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 11
 
-      - name: Show repository files
+      - name: Prepare Android SDK
         run: |
-          echo "当前仓库文件："
-          ls -la
-          echo "查找 zip 文件："
-          find . -maxdepth 2 -name "*.zip" -type f -print
+          set -e
+          rm -rf "$ANDROID_HOME/platforms/android-31" "$ANDROID_HOME/platforms/android-32" "$ANDROID_HOME/platforms/android-33" "$ANDROID_HOME/platforms/android-34" "$ANDROID_HOME/platforms/android-35" "$ANDROID_HOME/platforms/android-36" || true
+          rm -rf "$ANDROID_HOME/build-tools/31"* "$ANDROID_HOME/build-tools/32"* "$ANDROID_HOME/build-tools/33"* "$ANDROID_HOME/build-tools/34"* "$ANDROID_HOME/build-tools/35"* "$ANDROID_HOME/build-tools/36"* || true
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"
 
-      - name: Unzip source
+      - name: Create signing files
         run: |
-          rm -rf app-source
-          mkdir -p app-source
+          set -e
+          mkdir -p keystore
+          mkdir -p app/keystore
 
-          ZIP_FILE=$(find . -maxdepth 2 -name "SmsForwarder-entry-unified-source-battery-buttons-v34-oppo-autostart-app-page-only*.zip" -type f | head -n 1)
-
-          if [ -z "$ZIP_FILE" ]; then
-            echo "没有找到 SmsForwarder-entry-unified-source-battery-buttons-v34-oppo-autostart-app-page-only*.zip"
-            echo "请确认源码包已经上传到仓库根目录"
-            find . -maxdepth 2 -name "*.zip" -type f -print
-            exit 1
-          fi
-
-          echo "找到源码包：$ZIP_FILE"
-          unzip -o "$ZIP_FILE" -d app-source
-
-      - name: Locate Gradle project
-        run: |
-          PROJECT_DIR=$(find app-source -name "gradlew" -type f -exec dirname {} \; | head -n 1)
-
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "没有找到 gradlew，说明源码包结构不对"
-            find app-source -maxdepth 4 -type f -o -type d
-            exit 1
-          fi
-
-          echo "找到项目目录：$PROJECT_DIR"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
-
-      - name: Force fix version and debug signing
-        run: |
-          cd "$PROJECT_DIR"
-
-          cat > version.properties <<'EOF'
-          versionName=2.2.0-v34-oppo-autostart-app-page-only
-          versionCode=34
-          EOF
-
-          rm -f app/debug.keystore
-
-          keytool -genkeypair \
-            -v \
-            -keystore app/debug.keystore \
+          keytool -genkeypair -v \
+            -keystore keystore/debug.keystore \
             -storepass android \
             -alias androiddebugkey \
             -keypass android \
@@ -76,65 +40,45 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
+          cp keystore/debug.keystore app/debug.keystore
+          cp keystore/debug.keystore app/keystore/debug.keystore
+          cp keystore/debug.keystore debug.keystore
 
-          p = Path("app/build.gradle")
-          text = p.read_text()
+          cat > keystore/keystore.properties <<EOF2
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=debug.keystore
+          storePassword=android
+          EOF2
 
-          new_debug = """debug {
-                  keyAlias 'androiddebugkey'
-                  keyPassword 'android'
-                  storeFile file('debug.keystore')
-                  storePassword 'android'
-              }"""
+          cat > keystore.properties <<EOF2
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=keystore/debug.keystore
+          storePassword=android
+          EOF2
 
-          text2, count = re.subn(
-              r"debug\s*\{[^{}]*\}",
-              new_debug,
-              text,
-              count=1,
-              flags=re.S
-          )
+          cat > app/keystore.properties <<EOF2
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=debug.keystore
+          storePassword=android
+          EOF2
 
-          if count == 0:
-              print("替换失败：找不到 debug 签名块")
-              raise SystemExit(1)
+          cat > app/keystore/keystore.properties <<EOF2
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=debug.keystore
+          storePassword=android
+          EOF2
 
-          p.write_text(text2)
-          PY
-
-      - name: Grant execute permission for Gradle
+      - name: Build Debug APK
         run: |
-          cd "$PROJECT_DIR"
-          chmod +x gradlew
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
 
-      - name: Build debug APK
-        run: |
-          cd "$PROJECT_DIR"
-          set +e
-          ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
-          BUILD_CODE=${PIPESTATUS[0]}
-
-          echo "========== 关键错误开始 =========="
-          grep -n -i -A 30 -B 10 "what went wrong\|error:\|failed\|cannot find symbol\|manifest merger failed\|compilation failed\|unsupported class file\|signingconfig\|storefile\|keystore\|toInteger\|unexpected input\|duplicate attribute" build.log || true
-          echo "========== 关键错误结束 =========="
-
-          exit $BUILD_CODE
-
-      - name: Upload build log
-        if: always()
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: build-log
-          path: |
-            **/build.log
-
-      - name: Upload APK artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: SmsForwarder-v34-oppo-autostart-app-page-only-apk
-          path: |
-            **/build/outputs/apk/debug/*.apk
+          name: SmsForwarder-v35-bark-apk
+          path: app/build/outputs/apk/debug/*.apk
