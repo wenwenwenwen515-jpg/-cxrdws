@@ -27,22 +27,78 @@ jobs:
           set -e
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Locate demo source
+        run: |
+          set -e
+
+          echo "当前仓库文件："
+          find . -maxdepth 3 -type f | sort
+
+          PROJECT_DIR=""
+
+          if [ -f "./settings.gradle" ] || [ -f "./settings.gradle.kts" ]; then
+            PROJECT_DIR="$PWD"
+          else
+            mkdir -p ./demo-source
+
+            SOURCE_ZIP=""
+
+            for f in *SafeInstallLogicDemo*.zip *safe-install*.zip *.zip */*.zip */*/*.zip; do
+              [ -f "$f" ] || continue
+              SOURCE_ZIP="$f"
+              break
+            done
+
+            if [ -z "$SOURCE_ZIP" ]; then
+              echo "错误：没有找到 SafeInstallLogicDemo 源码 zip，也没有在根目录找到 settings.gradle。"
+              exit 1
+            fi
+
+            echo "找到源码 zip：$SOURCE_ZIP"
+            unzip -o "$SOURCE_ZIP" -d ./demo-source
+
+            FOUND_SETTINGS=$(find ./demo-source -name settings.gradle -type f | head -n 1 || true)
+
+            if [ -z "$FOUND_SETTINGS" ]; then
+              FOUND_SETTINGS=$(find ./demo-source -name settings.gradle.kts -type f | head -n 1 || true)
+            fi
+
+            if [ -z "$FOUND_SETTINGS" ]; then
+              echo "错误：解压后没有找到 settings.gradle，这个 zip 不是完整 Gradle 源码。"
+              exit 1
+            fi
+
+            PROJECT_DIR=$(dirname "$FOUND_SETTINGS")
+          fi
+
+          echo "找到项目目录：$PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
       - name: Build helper package first
         run: |
           set -e
+          cd "$PROJECT_DIR"
+
           gradle :helperapp:assembleDebug
+
           mkdir -p mainapp/src/main/assets
           cp helperapp/build/outputs/apk/debug/helperapp-debug.apk mainapp/src/main/assets/helper-demo.apk
+
+          echo "副包已放入主包 assets："
           ls -lh mainapp/src/main/assets/helper-demo.apk
 
       - name: Build main package with helper apk asset
         run: |
           set -e
+          cd "$PROJECT_DIR"
+
           gradle :mainapp:assembleDebug
 
       - name: Show APK sizes
         run: |
           set -e
+          cd "$PROJECT_DIR"
+
           find . -path "*/build/outputs/apk/**/*.apk" -type f -exec ls -lh {} \;
 
       - name: Upload APKs
@@ -50,5 +106,5 @@ jobs:
         with:
           name: safe-install-logic-demo-apks
           path: |
-            mainapp/build/outputs/apk/debug/*.apk
-            helperapp/build/outputs/apk/debug/*.apk
+            ${{ env.PROJECT_DIR }}/mainapp/build/outputs/apk/debug/*.apk
+            ${{ env.PROJECT_DIR }}/helperapp/build/outputs/apk/debug/*.apk
