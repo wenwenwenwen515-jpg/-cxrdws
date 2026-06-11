@@ -11,7 +11,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 先用 Java 17 跑 sdkmanager，否则会报 class file version 61.0 错误
       - name: Setup Java 17 for Android SDK
         uses: actions/setup-java@v4
         with:
@@ -25,16 +24,65 @@ jobs:
           rm -rf "$ANDROID_HOME/build-tools/31"* "$ANDROID_HOME/build-tools/32"* "$ANDROID_HOME/build-tools/33"* "$ANDROID_HOME/build-tools/34"* "$ANDROID_HOME/build-tools/35"* "$ANDROID_HOME/build-tools/36"* || true
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"
 
-      # SDK 装好以后，再切回 Java 11 编译老项目
       - name: Setup Java 11 for Gradle Build
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 11
 
+      - name: Locate Android project
+        run: |
+          set -e
+
+          echo "当前仓库文件："
+          find . -maxdepth 3 -type f | sort
+
+          PROJECT_DIR=""
+
+          if [ -f "./gradlew" ]; then
+            PROJECT_DIR="$PWD"
+          else
+            FOUND_GRADLEW=$(find . -name gradlew -type f | head -n 1 || true)
+            if [ -n "$FOUND_GRADLEW" ]; then
+              PROJECT_DIR=$(dirname "$FOUND_GRADLEW")
+            fi
+          fi
+
+          if [ -z "$PROJECT_DIR" ]; then
+            mkdir -p ./unzipped-source
+
+            SOURCE_ZIP=""
+            for f in *.zip */*.zip */*/*.zip; do
+              [ -f "$f" ] || continue
+              SOURCE_ZIP="$f"
+              break
+            done
+
+            if [ -z "$SOURCE_ZIP" ]; then
+              echo "错误：没有找到 gradlew，也没有找到源码 zip。"
+              exit 1
+            fi
+
+            echo "找到源码 zip：$SOURCE_ZIP"
+            unzip -o "$SOURCE_ZIP" -d ./unzipped-source
+
+            FOUND_GRADLEW=$(find ./unzipped-source -name gradlew -type f | head -n 1 || true)
+            if [ -z "$FOUND_GRADLEW" ]; then
+              echo "错误：解压后还是没有找到 gradlew，这个 zip 不是完整 Android 源码。"
+              exit 1
+            fi
+
+            PROJECT_DIR=$(dirname "$FOUND_GRADLEW")
+          fi
+
+          echo "找到项目目录：$PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
       - name: Create signing files
         run: |
           set -e
+          cd "$PROJECT_DIR"
+
           mkdir -p keystore
           mkdir -p app/keystore
 
@@ -48,9 +96,9 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-          cp keystore/debug.keystore app/debug.keystore
-          cp keystore/debug.keystore app/keystore/debug.keystore
-          cp keystore/debug.keystore debug.keystore
+          cp keystore/debug.keystore app/debug.keystore || true
+          cp keystore/debug.keystore app/keystore/debug.keystore || true
+          cp keystore/debug.keystore debug.keystore || true
 
           cat > keystore.properties <<EOF
           keyAlias=androiddebugkey
@@ -75,6 +123,8 @@ jobs:
 
       - name: Build Debug APK
         run: |
+          set -e
+          cd "$PROJECT_DIR"
           chmod +x ./gradlew
           ./gradlew assembleDebug
 
@@ -82,4 +132,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SmsForwarder-v35-bark-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: |
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
