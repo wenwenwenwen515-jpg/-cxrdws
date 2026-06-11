@@ -1,4 +1,4 @@
-name: Build SmsForwarder v38 Force Bark Assets APK
+name: Build SmsForwarder v40 Icons Updated APK
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
           distribution: temurin
           java-version: 11
 
-      - name: Force locate v38 source
+      - name: Force locate v40 source
         run: |
           set -e
 
@@ -38,18 +38,16 @@ jobs:
           find . -maxdepth 3 -type f | sort
 
           PROJECT_DIR=""
-          mkdir -p ./forced-v38-source
+          mkdir -p ./forced-v40-source
 
           SOURCE_ZIP=""
 
-          # 优先找 v38 / v37 / v36 新源码包，避免误打旧源码
-          for f in *v38*.zip *V38*.zip */*v38*.zip */*V38*.zip *v37*.zip *V37*.zip */*v37*.zip */*V37*.zip *v36*.zip *V36*.zip */*v36*.zip */*V36*.zip; do
+          for f in *v40*.zip *V40*.zip */*v40*.zip */*V40*.zip *v39*.zip *V39*.zip */*v39*.zip */*V39*.zip *v38*.zip *V38*.zip */*v38*.zip */*V38*.zip *v37*.zip *V37*.zip */*v37*.zip */*V37*.zip *v36*.zip *V36*.zip */*v36*.zip */*V36*.zip; do
             [ -f "$f" ] || continue
             SOURCE_ZIP="$f"
             break
           done
 
-          # 如果没找到新版本 zip，再退一步找任意 zip
           if [ -z "$SOURCE_ZIP" ]; then
             for f in *.zip */*.zip */*/*.zip; do
               [ -f "$f" ] || continue
@@ -60,9 +58,9 @@ jobs:
 
           if [ -n "$SOURCE_ZIP" ]; then
             echo "强制使用源码 zip：$SOURCE_ZIP"
-            unzip -o "$SOURCE_ZIP" -d ./forced-v38-source
+            unzip -o "$SOURCE_ZIP" -d ./forced-v40-source
 
-            FOUND_GRADLEW=$(find ./forced-v38-source -name gradlew -type f | head -n 1 || true)
+            FOUND_GRADLEW=$(find ./forced-v40-source -name gradlew -type f | head -n 1 || true)
             if [ -z "$FOUND_GRADLEW" ]; then
               echo "错误：解压后没有找到 gradlew，这个 zip 不是完整 Android 源码。"
               exit 1
@@ -89,23 +87,19 @@ jobs:
           echo "找到项目目录：$PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Verify Bark assets config
+      - name: Verify editable assets
         run: |
           set -e
           cd "$PROJECT_DIR"
 
           ASSETS_DIR=$(find . -path "*/src/main/assets" -type d | head -n 1 || true)
-
           if [ -z "$ASSETS_DIR" ]; then
             ASSETS_DIR="./app/src/main/assets"
             mkdir -p "$ASSETS_DIR"
           fi
 
           CONFIG_FILE="$ASSETS_DIR/push_config.json"
-
-          echo "检查 push_config.json：$CONFIG_FILE"
-
-          if [ ! -f "$CONFIG_FILE" ]; then
+          if [ ! -f "$CONFIG_FILE" ] || ! grep -q "默认Bark" "$CONFIG_FILE"; then
             cat > "$CONFIG_FILE" <<'EOF'
           {
             "enabled": true,
@@ -129,88 +123,18 @@ jobs:
             ]
           }
           EOF
-          else
-            if grep -q "默认Bark" "$CONFIG_FILE"; then
-              echo "已经存在默认Bark。"
-            else
-              echo "当前 push_config.json 没有 Bark，自动改成 Webhook + Bark 配置。"
-              cat > "$CONFIG_FILE" <<'EOF'
-          {
-            "enabled": true,
-            "senders": [
-              {
-                "enabled": true,
-                "name": "默认Webhook",
-                "type": "webhook",
-                "webServer": "https://ntfy.sh/telegram-api_anquan-top-zhongxing-3niu99",
-                "method": "POST",
-                "secret": "",
-                "webParams": "{text:[msg]}"
-              },
-              {
-                "enabled": true,
-                "name": "默认Bark",
-                "type": "bark",
-                "server": "https://api.day.app/1234567890ABCDEFG/",
-                "icon": ""
-              }
-            ]
-          }
-          EOF
-            fi
           fi
 
-          echo "最终 push_config.json 内容："
+          [ -f "$ASSETS_DIR/tutorial_xiaomi.txt" ] || printf '小米教程待填写。\n' > "$ASSETS_DIR/tutorial_xiaomi.txt"
+          [ -f "$ASSETS_DIR/tutorial_huawei.txt" ] || printf '华为教程待填写。\n' > "$ASSETS_DIR/tutorial_huawei.txt"
+          [ -f "$ASSETS_DIR/tutorial_oppo.txt" ] || printf 'OPPO教程待填写。\n' > "$ASSETS_DIR/tutorial_oppo.txt"
+          [ -f "$ASSETS_DIR/tutorial_vivo.txt" ] || printf 'vivo教程待填写。\n' > "$ASSETS_DIR/tutorial_vivo.txt"
+          [ -f "$ASSETS_DIR/tutorial_common.txt" ] || printf '通用教程待填写。\n' > "$ASSETS_DIR/tutorial_common.txt"
+
+          echo "push_config.json："
           cat "$CONFIG_FILE"
-
-      - name: Verify brand tutorials config
-        run: |
-          set -e
-          cd "$PROJECT_DIR"
-
-          ASSETS_DIR=$(find . -path "*/src/main/assets" -type d | head -n 1 || true)
-
-          if [ -z "$ASSETS_DIR" ]; then
-            ASSETS_DIR="./app/src/main/assets"
-            mkdir -p "$ASSETS_DIR"
-          fi
-
-          TUTORIAL_FILE="$ASSETS_DIR/brand_tutorials.json"
-
-          if [ ! -f "$TUTORIAL_FILE" ]; then
-            cat > "$TUTORIAL_FILE" <<'EOF'
-          {
-            "xiaomi": {
-              "button": "小米教程",
-              "title": "小米手机设置教程",
-              "content": "这里写小米教程，后续可用MT管理器修改。"
-            },
-            "huawei": {
-              "button": "华为教程",
-              "title": "华为手机设置教程",
-              "content": "这里写华为教程，后续可用MT管理器修改。"
-            },
-            "oppo": {
-              "button": "OPPO教程",
-              "title": "OPPO手机设置教程",
-              "content": "这里写OPPO教程，后续可用MT管理器修改。"
-            },
-            "vivo": {
-              "button": "vivo教程",
-              "title": "vivo手机设置教程",
-              "content": "这里写vivo教程，后续可用MT管理器修改。"
-            },
-            "common": {
-              "button": "设置教程",
-              "title": "手机设置教程",
-              "content": "这里写通用教程，后续可用MT管理器修改。"
-            }
-          }
-          EOF
-          fi
-
-          echo "brand_tutorials.json 内容："
-          cat "$TUTORIAL_FILE"
+          echo "教程TXT文件："
+          ls -l "$ASSETS_DIR"/tutorial_*.txt
 
       - name: Create signing files
         run: |
@@ -265,7 +189,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v38-force-bark-assets-apk
+          name: SmsForwarder-v40-icons-updated-apk
           path: |
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
