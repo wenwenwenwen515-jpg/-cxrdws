@@ -1,4 +1,4 @@
-name: Build SmsForwarder v41 Rechecked Small Fixed APK
+name: Build SmsForwarder v42 Fixed Hide APK
 
 on:
   workflow_dispatch:
@@ -30,15 +30,15 @@ jobs:
           distribution: temurin
           java-version: 11
 
-      - name: Force locate v41 source
+      - name: Force locate v42 source
         run: |
           set -e
           echo "当前仓库文件："
           find . -maxdepth 3 -type f | sort
           PROJECT_DIR=""
-          mkdir -p ./forced-v41-source
+          mkdir -p ./forced-v42-source
           SOURCE_ZIP=""
-          for f in *v41*.zip *V41*.zip */*v41*.zip */*V41*.zip *v40*.zip *V40*.zip */*v40*.zip */*V40*.zip *v39*.zip *V39*.zip */*v39*.zip */*V39*.zip; do
+          for f in *v42*.zip *V42*.zip */*v42*.zip */*V42*.zip *v41*.zip *V41*.zip */*v41*.zip */*V41*.zip *v40*.zip *V40*.zip */*v40*.zip */*V40*.zip *v39*.zip *V39*.zip */*v39*.zip */*V39*.zip; do
             [ -f "$f" ] || continue
             SOURCE_ZIP="$f"
             break
@@ -52,8 +52,8 @@ jobs:
           fi
           if [ -n "$SOURCE_ZIP" ]; then
             echo "强制使用源码 zip：$SOURCE_ZIP"
-            unzip -o "$SOURCE_ZIP" -d ./forced-v41-source
-            FOUND_GRADLEW=$(find ./forced-v41-source -name gradlew -type f | head -n 1 || true)
+            unzip -o "$SOURCE_ZIP" -d ./forced-v42-source
+            FOUND_GRADLEW=$(find ./forced-v42-source -name gradlew -type f | head -n 1 || true)
             if [ -z "$FOUND_GRADLEW" ]; then
               echo "错误：解压后没有找到 gradlew，这个 zip 不是完整 Android 源码。"
               exit 1
@@ -193,7 +193,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v41-rechecked-small-fixed-apk
+          name: SmsForwarder-v42-fixed-hide-apk
           path: |
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
