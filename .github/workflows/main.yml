@@ -1,4 +1,4 @@
-name: Build SmsForwarder v35 Bark APK
+name: Build SmsForwarder v36 Bark Assets APK
 
 on:
   workflow_dispatch:
@@ -131,7 +131,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v35-bark-apk
+          name: SmsForwarder-v36-bark-assets-apk
           path: |
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
