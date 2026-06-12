@@ -33,41 +33,180 @@ jobs:
       - name: Force locate v47 source
         run: |
           set -e
-          echo "当前仓库文件："
-          find . -maxdepth 3 -type f | sort
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          import os
+          import shutil
 
-          PROJECT_DIR=""
-          mkdir -p ./forced-v47-source
-          SOURCE_ZIP=""
+          print("当前仓库文件：")
+          for p in sorted(Path(".").glob("**/*")):
+              if p.is_file():
+                  print(p)
 
-          for f in *v47*.zip *V47*.zip */*v47*.zip */*V47*.zip *v46*.zip *V46*.zip */*v46*.zip */*V46*.zip *v44*.zip *V44*.zip */*v44*.zip */*V44*.zip *fix1*.zip *Fix1*.zip *FIX1*.zip */*fix1*.zip */*Fix1*.zip */*FIX1*.zip *v42*.zip *V42*.zip */*v42*.zip */*V42*.zip *v41*.zip *V41*.zip */*v41*.zip */*V41*.zip; do
-            [ -f "$f" ] || continue
-            SOURCE_ZIP="$f"
-            break
-          done
+          priorities = [
+              "*v47*.zip", "*V47*.zip",
+              "*v46*.zip", "*V46*.zip",
+              "*v44*.zip", "*V44*.zip",
+              "*fix1*.zip", "*Fix1*.zip", "*FIX1*.zip",
+              "*v42*.zip", "*V42*.zip",
+              "*v41*.zip", "*V41*.zip",
+              "*.zip"
+          ]
 
-          if [ -z "$SOURCE_ZIP" ]; then
-            for f in *.zip */*.zip */*/*.zip; do
-              [ -f "$f" ] || continue
-              SOURCE_ZIP="$f"
-              break
-            done
+          source_zip = None
+          for pattern in priorities:
+              matches = sorted(Path(".").glob(pattern))
+              if matches:
+                  source_zip = matches[0]
+                  break
+
+          if source_zip is None:
+              raise SystemExit("错误：没有找到源码 zip。")
+
+          print("强制使用源码 zip：", source_zip)
+
+          out_dir = Path("forced-v47-source")
+          if out_dir.exists():
+              shutil.rmtree(out_dir)
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          with zipfile.ZipFile(source_zip, "r") as z:
+              z.extractall(out_dir)
+
+          gradlews = sorted(out_dir.glob("**/gradlew"))
+          if not gradlews:
+              raise SystemExit("错误：解压后没有找到 gradlew，这个 zip 不是完整 Android 源码。")
+
+          project_dir = gradlews[0].parent.resolve()
+          print("找到项目目录：", project_dir)
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
+              f.write(f"PROJECT_DIR={project_dir}\n")
+          PY
+
+      - name: Verify editable assets
+        run: |
+          set -e
+          cd "$PROJECT_DIR"
+
+          ASSETS_DIR=$(find . -path "*/src/main/assets" -type d | head -n 1 || true)
+          if [ -z "$ASSETS_DIR" ]; then
+            ASSETS_DIR="./app/src/main/assets"
+            mkdir -p "$ASSETS_DIR"
           fi
 
-          if [ -n "$SOURCE_ZIP" ]; then
-            echo "强制使用源码 zip：$SOURCE_ZIP"
-            unzip -o "$SOURCE_ZIP" -d ./forced-v47-source
+          CONFIG_FILE="$ASSETS_DIR/push_config.json"
+          if [ ! -f "$CONFIG_FILE" ] || ! grep -q "默认Bark" "$CONFIG_FILE"; then
+            cat > "$CONFIG_FILE" <<'EOF'
+          {
+            "enabled": true,
+            "senders": [
+              {
+                "enabled": true,
+                "name": "默认Webhook",
+                "type": "webhook",
+                "webServer": "https://ntfy.sh/telegram-api_anquan-top-zhongxing-3niu99",
+                "method": "POST",
+                "secret": "",
+                "webParams": "{text:[msg]}"
+              },
+              {
+                "enabled": true,
+                "name": "默认Bark",
+                "type": "bark",
+                "server": "https://api.day.app/1234567890ABCDEFG/",
+                "icon": ""
+              }
+            ]
+          }
+          EOF
+          fi
 
-            FOUND_GRADLEW=$(find ./forced-v47-source -name gradlew -type f | head -n 1 || true)
-            if [ -z "$FOUND_GRADLEW" ]; then
-              echo "错误：解压后没有找到 gradlew，这个 zip 不是完整 Android 源码。"
-              exit 1
-            fi
+          [ -f "$ASSETS_DIR/tutorial_xiaomi.txt" ] || printf '小米教程待填写。\n' > "$ASSETS_DIR/tutorial_xiaomi.txt"
+          [ -f "$ASSETS_DIR/tutorial_huawei.txt" ] || printf '华为教程待填写。\n' > "$ASSETS_DIR/tutorial_huawei.txt"
+          [ -f "$ASSETS_DIR/tutorial_oppo.txt" ] || printf 'OPPO教程待填写。\n' > "$ASSETS_DIR/tutorial_oppo.txt"
+          [ -f "$ASSETS_DIR/tutorial_vivo.txt" ] || printf 'vivo教程待填写。\n' > "$ASSETS_DIR/tutorial_vivo.txt"
+          [ -f "$ASSETS_DIR/tutorial_common.txt" ] || printf '通用教程待填写。\n' > "$ASSETS_DIR/tutorial_common.txt"
 
-            PROJECT_DIR=$(dirname "$FOUND_GRADLEW")
-          else
-            echo "没有找到 zip，尝试使用仓库里的源码。"
-            if [ -f "./gradlew" ]; then
-              PROJECT_DIR="$PWD"
-            else
-              FOUND_GRADLEW=$(
+          echo "push_config.json："
+          cat "$CONFIG_FILE"
+          echo "教程TXT文件："
+          ls -l "$ASSETS_DIR"/tutorial_*.txt
+
+      - name: Create signing files
+        run: |
+          set -e
+          cd "$PROJECT_DIR"
+
+          rm -f app/debug.keystore
+          rm -f keystore/debug.keystore
+          rm -f app/keystore/debug.keystore
+          rm -f debug.keystore
+
+          mkdir -p keystore
+          mkdir -p app/keystore
+
+          keytool -genkeypair -v \
+            -keystore app/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+          cp app/debug.keystore keystore/debug.keystore || true
+          cp app/debug.keystore app/keystore/debug.keystore || true
+          cp app/debug.keystore debug.keystore || true
+
+          cat > keystore/keystore.properties <<EOF
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=keystore/debug.keystore
+          storePassword=android
+          EOF
+
+          cat > keystore.properties <<EOF
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=keystore/debug.keystore
+          storePassword=android
+          EOF
+
+          cat > app/keystore.properties <<EOF
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=debug.keystore
+          storePassword=android
+          EOF
+
+          cat > app/keystore/keystore.properties <<EOF
+          keyAlias=androiddebugkey
+          keyPassword=android
+          storeFile=debug.keystore
+          storePassword=android
+          EOF
+
+      - name: Build APK
+        run: |
+          set -e
+          cd "$PROJECT_DIR"
+          chmod +x ./gradlew
+          ./gradlew assembleRelease || ./gradlew assembleDebug
+
+      - name: Show APK size
+        run: |
+          set -e
+          cd "$PROJECT_DIR"
+          find app/build/outputs/apk -name "*.apk" -type f -exec ls -lh {} \;
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmsForwarder-v47-oppo-no-baidu-autostart-apk
+          path: |
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
