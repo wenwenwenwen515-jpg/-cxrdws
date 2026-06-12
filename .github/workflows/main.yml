@@ -1,4 +1,4 @@
-name: Build SmsForwarder v47 OPPO No Baidu Autostart APK
+name: Build SmsForwarder v48 OPPO Search UI APK
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
           distribution: temurin
           java-version: 11
 
-      - name: Force locate v47 source
+      - name: Force locate v48 source
         run: |
           set -e
           python3 - <<'PY'
@@ -45,6 +45,7 @@ jobs:
                   print(p)
 
           priorities = [
+              "*v48*.zip", "*V48*.zip",
               "*v47*.zip", "*V47*.zip",
               "*v46*.zip", "*V46*.zip",
               "*v44*.zip", "*V44*.zip",
@@ -66,7 +67,7 @@ jobs:
 
           print("强制使用源码 zip：", source_zip)
 
-          out_dir = Path("forced-v47-source")
+          out_dir = Path("forced-v48-source")
           if out_dir.exists():
               shutil.rmtree(out_dir)
           out_dir.mkdir(parents=True, exist_ok=True)
@@ -205,7 +206,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v47-oppo-no-baidu-autostart-apk
+          name: SmsForwarder-v48-oppo-search-ui-apk
           path: |
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
