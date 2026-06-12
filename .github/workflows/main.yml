@@ -1,4 +1,4 @@
-name: Build SmsForwarder v44 OPPO Autostart APK
+name: Build SmsForwarder v46 OPPO Right App Page APK
 
 on:
   workflow_dispatch:
@@ -30,19 +30,22 @@ jobs:
           distribution: temurin
           java-version: 11
 
-      - name: Force locate v44 source
+      - name: Force locate v46 source
         run: |
           set -e
           echo "当前仓库文件："
           find . -maxdepth 3 -type f | sort
+
           PROJECT_DIR=""
-          mkdir -p ./forced-v44-source
+          mkdir -p ./forced-v46-source
           SOURCE_ZIP=""
-          for f in *v44*.zip *V44*.zip */*v44*.zip */*V44*.zip *fix1*.zip *Fix1*.zip *FIX1*.zip */*fix1*.zip */*Fix1*.zip */*FIX1*.zip *v42*.zip *V42*.zip */*v42*.zip */*V42*.zip *v41*.zip *V41*.zip */*v41*.zip */*V41*.zip *v40*.zip *V40*.zip */*v40*.zip */*V40*.zip *v39*.zip *V39*.zip */*v39*.zip */*V39*.zip; do
+
+          for f in *v46*.zip *V46*.zip */*v46*.zip */*V46*.zip *v45*.zip *V45*.zip */*v45*.zip */*V45*.zip *v44*.zip *V44*.zip */*v44*.zip */*V44*.zip *fix1*.zip *Fix1*.zip *FIX1*.zip */*fix1*.zip */*Fix1*.zip */*FIX1*.zip *v42*.zip *V42*.zip */*v42*.zip */*V42*.zip *v41*.zip *V41*.zip */*v41*.zip */*V41*.zip; do
             [ -f "$f" ] || continue
             SOURCE_ZIP="$f"
             break
           done
+
           if [ -z "$SOURCE_ZIP" ]; then
             for f in *.zip */*.zip */*/*.zip; do
               [ -f "$f" ] || continue
@@ -50,14 +53,17 @@ jobs:
               break
             done
           fi
+
           if [ -n "$SOURCE_ZIP" ]; then
             echo "强制使用源码 zip：$SOURCE_ZIP"
-            unzip -o "$SOURCE_ZIP" -d ./forced-v44-source
-            FOUND_GRADLEW=$(find ./forced-v44-source -name gradlew -type f | head -n 1 || true)
+            unzip -o "$SOURCE_ZIP" -d ./forced-v46-source
+
+            FOUND_GRADLEW=$(find ./forced-v46-source -name gradlew -type f | head -n 1 || true)
             if [ -z "$FOUND_GRADLEW" ]; then
               echo "错误：解压后没有找到 gradlew，这个 zip 不是完整 Android 源码。"
               exit 1
             fi
+
             PROJECT_DIR=$(dirname "$FOUND_GRADLEW")
           else
             echo "没有找到 zip，尝试使用仓库里的源码。"
@@ -70,10 +76,12 @@ jobs:
               fi
             fi
           fi
+
           if [ -z "$PROJECT_DIR" ]; then
             echo "错误：没有找到 Android 项目 gradlew。"
             exit 1
           fi
+
           echo "找到项目目录：$PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
@@ -81,11 +89,13 @@ jobs:
         run: |
           set -e
           cd "$PROJECT_DIR"
+
           ASSETS_DIR=$(find . -path "*/src/main/assets" -type d | head -n 1 || true)
           if [ -z "$ASSETS_DIR" ]; then
             ASSETS_DIR="./app/src/main/assets"
             mkdir -p "$ASSETS_DIR"
           fi
+
           CONFIG_FILE="$ASSETS_DIR/push_config.json"
           if [ ! -f "$CONFIG_FILE" ] || ! grep -q "默认Bark" "$CONFIG_FILE"; then
             cat > "$CONFIG_FILE" <<'EOF'
@@ -112,11 +122,13 @@ jobs:
           }
           EOF
           fi
+
           [ -f "$ASSETS_DIR/tutorial_xiaomi.txt" ] || printf '小米教程待填写。\n' > "$ASSETS_DIR/tutorial_xiaomi.txt"
           [ -f "$ASSETS_DIR/tutorial_huawei.txt" ] || printf '华为教程待填写。\n' > "$ASSETS_DIR/tutorial_huawei.txt"
           [ -f "$ASSETS_DIR/tutorial_oppo.txt" ] || printf 'OPPO教程待填写。\n' > "$ASSETS_DIR/tutorial_oppo.txt"
           [ -f "$ASSETS_DIR/tutorial_vivo.txt" ] || printf 'vivo教程待填写。\n' > "$ASSETS_DIR/tutorial_vivo.txt"
           [ -f "$ASSETS_DIR/tutorial_common.txt" ] || printf '通用教程待填写。\n' > "$ASSETS_DIR/tutorial_common.txt"
+
           echo "push_config.json："
           cat "$CONFIG_FILE"
           echo "教程TXT文件："
@@ -193,7 +205,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v44-oppo-autostart-apk
+          name: SmsForwarder-v46-oppo-right-app-page-apk
           path: |
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
