@@ -1,4 +1,4 @@
-name: Build SmsForwarder v50 OPPO Search UI Fix2 APK
+name: Build SmsForwarder v51 Restore OPPO Search UI APK
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
           distribution: temurin
           java-version: 11
 
-      - name: Force locate v50 source
+      - name: Force locate v51 source
         run: |
           set -e
           python3 - <<'PY'
@@ -45,6 +45,7 @@ jobs:
                   print(p)
 
           priorities = [
+              "*v51*.zip", "*V51*.zip",
               "*v50*.zip", "*V50*.zip",
               "*v49*.zip", "*V49*.zip",
               "*v48*.zip", "*V48*.zip",
@@ -69,7 +70,7 @@ jobs:
 
           print("强制使用源码 zip：", source_zip)
 
-          out_dir = Path("forced-v50-source")
+          out_dir = Path("forced-v51-source")
           if out_dir.exists():
               shutil.rmtree(out_dir)
           out_dir.mkdir(parents=True, exist_ok=True)
@@ -208,7 +209,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v50-oppo-search-ui-fix2-apk
+          name: SmsForwarder-v51-restore-oppo-search-ui-apk
           path: |
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
