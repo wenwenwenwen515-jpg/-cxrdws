@@ -1,4 +1,4 @@
-name: Build SmsForwarder v56 Scale Prompt FineTune APK
+name: Build SmsForwarder v56 Scale Prompt FineTune CompileFix APK
 
 on: [workflow_dispatch]
 
@@ -35,6 +35,7 @@ jobs:
       import os
       zips = []
       for pattern in [
+          "00-*finetune-compilefix*.zip",
           "00-*finetune*.zip",
           "00-*scale-prompt*.zip",
           "00-*calcscale*.zip",
@@ -128,6 +129,6 @@ jobs:
   - name: Upload APK
     uses: actions/upload-artifact@v4
     with:
-      name: SmsForwarder-v56-scale-prompt-finetune-apk
+      name: SmsForwarder-v56-scale-prompt-finetune-compilefix-apk
       path: |
         ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
