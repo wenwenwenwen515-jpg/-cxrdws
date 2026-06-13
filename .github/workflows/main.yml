@@ -1,160 +1,135 @@
-name: Build SmsForwarder v55 Fix Notification Battery Autostart APK
+name: Build SmsForwarder v56 Xiaomi Oppo Vivo Huawei Fix APK
 
 on:
-  workflow_dispatch:
+workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+build:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Java 17 for Android SDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Prepare Android SDK
-        run: |
-          set -e
-          rm -rf "$ANDROID_HOME/platforms/android-31" "$ANDROID_HOME/platforms/android-32" "$ANDROID_HOME/platforms/android-33" "$ANDROID_HOME/platforms/android-34" "$ANDROID_HOME/platforms/android-35" "$ANDROID_HOME/platforms/android-36" || true
-          rm -rf "$ANDROID_HOME/build-tools/31"* "$ANDROID_HOME/build-tools/32"* "$ANDROID_HOME/build-tools/33"* "$ANDROID_HOME/build-tools/34"* "$ANDROID_HOME/build-tools/35"* "$ANDROID_HOME/build-tools/36"* || true
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"
-
-      - name: Setup Java 11 for Gradle Build
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 11
-
-      - name: Force locate v55 source
-        run: |
-          set -e
-          python3 - <<'PY'
-          from pathlib import Path
-          import zipfile
-          import os
-          import shutil
-
-          print("当前仓库文件：")
-          for p in sorted(Path(".").glob("**/*")):
-              if p.is_file():
-                  print(p)
-
-          priorities = [
-              "*v55*.zip", "*V55*.zip",
-              "*v54*.zip", "*V54*.zip",
-              "*v53*.zip", "*V53*.zip",
-              "*.zip"
-          ]
-
-          source_zip = None
-          for pattern in priorities:
-              matches = sorted(Path(".").glob(pattern))
-              if matches:
-                  source_zip = matches[0]
-                  break
-
-          if source_zip is None:
-              raise SystemExit("错误：没有找到源码 zip。")
-
-          print("强制使用源码 zip：", source_zip)
-
-          out_dir = Path("forced-v55-source")
-          if out_dir.exists():
-              shutil.rmtree(out_dir)
-          out_dir.mkdir(parents=True, exist_ok=True)
-
-          with zipfile.ZipFile(source_zip, "r") as z:
-              z.extractall(out_dir)
-
-          gradlews = sorted(out_dir.glob("**/gradlew"))
-          if not gradlews:
-              raise SystemExit("错误：解压后没有找到 gradlew，这个 zip 不是完整 Android 源码。")
-
-          project_dir = gradlews[0].parent.resolve()
-          print("找到项目目录：", project_dir)
-
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
-              f.write(f"PROJECT_DIR={project_dir}\n")
-          PY
-
-      - name: Create signing files
-        run: |
-          set -e
-          cd "$PROJECT_DIR"
-
-          rm -f app/debug.keystore
-          rm -f keystore/debug.keystore
-          rm -f app/keystore/debug.keystore
-          rm -f debug.keystore
-
-          mkdir -p keystore
-          mkdir -p app/keystore
-
-          keytool -genkeypair -v \
-            -keystore app/debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
-
-          cp app/debug.keystore keystore/debug.keystore || true
-          cp app/debug.keystore app/keystore/debug.keystore || true
-          cp app/debug.keystore debug.keystore || true
-
-          cat > keystore/keystore.properties <<EOF
-          keyAlias=androiddebugkey
-          keyPassword=android
-          storeFile=keystore/debug.keystore
-          storePassword=android
-          EOF
-
-          cat > keystore.properties <<EOF
-          keyAlias=androiddebugkey
-          keyPassword=android
-          storeFile=keystore/debug.keystore
-          storePassword=android
-          EOF
-
-          cat > app/keystore.properties <<EOF
-          keyAlias=androiddebugkey
-          keyPassword=android
-          storeFile=debug.keystore
-          storePassword=android
-          EOF
-
-          cat > app/keystore/keystore.properties <<EOF
-          keyAlias=androiddebugkey
-          keyPassword=android
-          storeFile=debug.keystore
-          storePassword=android
-          EOF
-
-      - name: Build APK
-        run: |
-          set -e
-          cd "$PROJECT_DIR"
-          chmod +x ./gradlew
-          ./gradlew assembleRelease || ./gradlew assembleDebug
-
-      - name: Show APK size
-        run: |
-          set -e
-          cd "$PROJECT_DIR"
-          find app/build/outputs/apk -name "*.apk" -type f -exec ls -lh {} \;
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SmsForwarder-v55-fix-notification-battery-autostart-apk
-          path: |
-            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
-            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
-            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
+  - name: Setup Java 17 for Android SDK
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: 17
+  - name: Prepare Android SDK
+    run: |
+      set -e
+      rm -rf "$ANDROID_HOME/platforms/android-31" "$ANDROID_HOME/platforms/android-32" "$ANDROID_HOME/platforms/android-33" "$ANDROID_HOME/platforms/android-34" "$ANDROID_HOME/platforms/android-35" "$ANDROID_HOME/platforms/android-36" || true
+      rm -rf "$ANDROID_HOME/build-tools/31"* "$ANDROID_HOME/build-tools/32"* "$ANDROID_HOME/build-tools/33"* "$ANDROID_HOME/build-tools/34"* "$ANDROID_HOME/build-tools/35"* "$ANDROID_HOME/build-tools/36"* || true
+      yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"
+  - name: Setup Java 11 for Gradle Build
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: 11
+  - name: Force locate v56 source
+    run: |
+      set -e
+      python3 - <<'PY'
+      from pathlib import Path
+      import zipfile
+      import os
+      import shutil
+      print("当前仓库文件：")
+      for p in sorted(Path(".").glob("**/*")):
+          if p.is_file():
+              print(p)
+      priorities = [
+          "*v56*.zip", "*V56*.zip",
+          "*v55*.zip", "*V55*.zip",
+          "*v54*.zip", "*V54*.zip",
+          "*v53*.zip", "*V53*.zip",
+          "*.zip"
+      ]
+      source_zip = None
+      for pattern in priorities:
+          matches = sorted(Path(".").glob(pattern))
+          if matches:
+              source_zip = matches[0]
+              break
+      if source_zip is None:
+          raise SystemExit("错误：没有找到源码 zip。")
+      print("强制使用源码 zip：", source_zip)
+      out_dir = Path("forced-v56-source")
+      if out_dir.exists():
+          shutil.rmtree(out_dir)
+      out_dir.mkdir(parents=True, exist_ok=True)
+      with zipfile.ZipFile(source_zip, "r") as z:
+          z.extractall(out_dir)
+      gradlews = sorted(out_dir.glob("**/gradlew"))
+      if not gradlews:
+          raise SystemExit("错误：解压后没有找到 gradlew，这个 zip 不是完整 Android 源码。")
+      project_dir = gradlews[0].parent.resolve()
+      print("找到项目目录：", project_dir)
+      with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
+          f.write(f"PROJECT_DIR={project_dir}\n")
+      PY
+  - name: Create signing files
+    run: |
+      set -e
+      cd "$PROJECT_DIR"
+      rm -f app/debug.keystore
+      rm -f keystore/debug.keystore
+      rm -f app/keystore/debug.keystore
+      rm -f debug.keystore
+      mkdir -p keystore
+      mkdir -p app/keystore
+      keytool -genkeypair -v \
+        -keystore app/debug.keystore \
+        -storepass android \
+        -alias androiddebugkey \
+        -keypass android \
+        -keyalg RSA \
+        -keysize 2048 \
+        -validity 10000 \
+        -dname "CN=Android Debug,O=Android,C=US"
+      cp app/debug.keystore keystore/debug.keystore || true
+      cp app/debug.keystore app/keystore/debug.keystore || true
+      cp app/debug.keystore debug.keystore || true
+      cat > keystore/keystore.properties <<EOF
+      keyAlias=androiddebugkey
+      keyPassword=android
+      storeFile=keystore/debug.keystore
+      storePassword=android
+      EOF
+      cat > keystore.properties <<EOF
+      keyAlias=androiddebugkey
+      keyPassword=android
+      storeFile=keystore/debug.keystore
+      storePassword=android
+      EOF
+      cat > app/keystore.properties <<EOF
+      keyAlias=androiddebugkey
+      keyPassword=android
+      storeFile=debug.keystore
+      storePassword=android
+      EOF
+      cat > app/keystore/keystore.properties <<EOF
+      keyAlias=androiddebugkey
+      keyPassword=android
+      storeFile=debug.keystore
+      storePassword=android
+      EOF
+  - name: Build APK
+    run: |
+      set -e
+      cd "$PROJECT_DIR"
+      chmod +x ./gradlew
+      ./gradlew assembleRelease || ./gradlew assembleDebug
+  - name: Show APK size
+    run: |
+      set -e
+      cd "$PROJECT_DIR"
+      find app/build/outputs/apk -name "*.apk" -type f -exec ls -lh {} \;
+  - name: Upload APK
+    uses: actions/upload-artifact@v4
+    with:
+      name: SmsForwarder-v56-xiaomi-oppo-vivo-huawei-fix-apk
+      path: |
+        ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
+        ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+        ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
