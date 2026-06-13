@@ -1,4 +1,4 @@
-name: Build SmsForwarder v56 Fix3 SMS Protect APK
+name: Build SmsForwarder v56 Fix4 Default SMS Guard APK
 
 on: [workflow_dispatch]
 
@@ -35,6 +35,7 @@ jobs:
       import os
       zips = []
       for pattern in [
+          "00-*fix4*.zip",
           "00-*v56*.zip",
           "00-*V56*.zip",
           "*v56*.zip",
@@ -122,6 +123,6 @@ jobs:
   - name: Upload APK
     uses: actions/upload-artifact@v4
     with:
-      name: SmsForwarder-v56-fix3-sms-protect-apk
+      name: SmsForwarder-v56-fix4-default-sms-guard-apk
       path: |
         ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
