@@ -3,10 +3,10 @@ name: Build SmsForwarder v56 Caption Popup Final APK
 on: [workflow_dispatch]
 
 jobs:
-build:
-runs-on: ubuntu-latest
+ build:
+  runs-on: ubuntu-latest
 
-steps:
+  steps:
   - name: Checkout repository
     uses: actions/checkout@v4
   - name: Setup Java 17
