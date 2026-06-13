@@ -1,3 +1,13 @@
+name: Build SmsForwarder v56 APK
+
+on:
+workflow_dispatch:
+
+jobs:
+build:
+runs-on: ubuntu-latest
+
+steps:
   - name: Checkout repository
     uses: actions/checkout@v4
   - name: Setup Java 17 for Android SDK
@@ -16,7 +26,7 @@
     with:
       distribution: temurin
       java-version: 11
-  - name: Force locate v56 source
+  - name: Force locate source
     run: |
       set -e
       python3 - <<'PY'
@@ -24,10 +34,6 @@
       import zipfile
       import os
       import shutil
-      print("当前仓库文件：")
-      for p in sorted(Path(".").glob("**/*")):
-          if p.is_file():
-              print(p)
       priorities = [
           "*v56*.zip", "*V56*.zip",
           "*v55*.zip", "*V55*.zip",
@@ -42,9 +48,9 @@
               source_zip = matches[0]
               break
       if source_zip is None:
-          raise SystemExit("错误：没有找到源码 zip。")
-      print("强制使用源码 zip：", source_zip)
-      out_dir = Path("forced-v56-source")
+          raise SystemExit("ERROR: source zip not found.")
+      print("Using source zip:", source_zip)
+      out_dir = Path("forced-source")
       if out_dir.exists():
           shutil.rmtree(out_dir)
       out_dir.mkdir(parents=True, exist_ok=True)
@@ -52,9 +58,9 @@
           z.extractall(out_dir)
       gradlews = sorted(out_dir.glob("**/gradlew"))
       if not gradlews:
-          raise SystemExit("错误：解压后没有找到 gradlew，这个 zip 不是完整 Android 源码。")
+          raise SystemExit("ERROR: gradlew not found after unzip.")
       project_dir = gradlews[0].parent.resolve()
-      print("找到项目目录：", project_dir)
+      print("Project dir:", project_dir)
       with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
           f.write(f"PROJECT_DIR={project_dir}\n")
       PY
@@ -118,7 +124,7 @@
   - name: Upload APK
     uses: actions/upload-artifact@v4
     with:
-      name: SmsForwarder-v56-xiaomi-oppo-vivo-huawei-fix-apk
+      name: SmsForwarder-v56-apk
       path: |
         ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
         ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
