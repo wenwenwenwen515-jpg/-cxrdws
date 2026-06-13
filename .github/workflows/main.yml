@@ -1,4 +1,4 @@
-name: Build SmsForwarder v56 FineTune LayoutFix2 APK
+name: Build SmsForwarder v56 Caption Only APK
 
 on: [workflow_dispatch]
 
@@ -35,6 +35,7 @@ jobs:
       import os
       zips = []
       for pattern in [
+          "00-*caption-only*.zip",
           "00-*layoutfix2*.zip",
           "00-*finetune-compilefix*.zip",
           "00-*finetune*.zip",
@@ -130,6 +131,6 @@ jobs:
   - name: Upload APK
     uses: actions/upload-artifact@v4
     with:
-      name: SmsForwarder-v56-finetune-layoutfix2-apk
+      name: SmsForwarder-v56-caption-only-apk
       path: |
         ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
