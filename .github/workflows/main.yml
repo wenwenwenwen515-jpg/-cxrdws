@@ -1,4 +1,4 @@
-name: Build SmsForwarder v56 UI Final Opt CompileFix3 APK
+name: Build SmsForwarder v56 UI Final Opt CompileFix4 APK
 
 on: [workflow_dispatch]
 
@@ -35,6 +35,7 @@ jobs:
       import os
       zips = []
       for pattern in [
+          "00-*compilefix4*.zip",
           "00-*compilefix3*.zip",
           "00-*compilefix2*.zip",
           "00-*compilefix*.zip",
@@ -129,6 +130,6 @@ jobs:
   - name: Upload APK
     uses: actions/upload-artifact@v4
     with:
-      name: SmsForwarder-v56-ui-final-opt-compilefix3-apk
+      name: SmsForwarder-v56-ui-final-opt-compilefix4-apk
       path: |
         ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
