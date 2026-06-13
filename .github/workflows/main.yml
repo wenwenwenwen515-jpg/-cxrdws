@@ -3,74 +3,125 @@ name: Build SmsForwarder v56 Fix2 APK
 on: [workflow_dispatch]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+ build:
+  runs-on: ubuntu-latest
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Prepare Android SDK
-        run: |
-          rm -rf "$ANDROID_HOME/platforms/android-31" "$ANDROID_HOME/platforms/android-32" "$ANDROID_HOME/platforms/android-33" "$ANDROID_HOME/platforms/android-34" "$ANDROID_HOME/platforms/android-35" "$ANDROID_HOME/platforms/android-36" || true
-          rm -rf "$ANDROID_HOME/build-tools/31"* "$ANDROID_HOME/build-tools/32"* "$ANDROID_HOME/build-tools/33"* "$ANDROID_HOME/build-tools/34"* "$ANDROID_HOME/build-tools/35"* "$ANDROID_HOME/build-tools/36"* || true
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 11
-
-      - name: Unzip source
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import zipfile, shutil, os
-          zips = []
-          for pattern in ["00-*v56*.zip", "*v56*.zip", "*.zip"]:
-              zips += sorted(Path(".").glob(pattern))
-          if not zips:
-              raise SystemExit("ERROR: source zip not found")
-          source_zip = zips[0]
-          print("Using source zip:", source_zip)
-          out = Path("source")
-          if out.exists():
-              shutil.rmtree(out)
-          out.mkdir()
-          with zipfile.ZipFile(source_zip, "r") as z:
-              z.extractall(out)
-          gradlew = sorted(out.glob("**/gradlew"))[0]
-          with open(os.environ["GITHUB_ENV"], "a") as f:
-              f.write(f"PROJECT_DIR={gradlew.parent.resolve()}\n")
-          PY
-
-      - name: Create signing files
-        run: |
-          cd "$PROJECT_DIR"
-          mkdir -p keystore app/keystore
-          keytool -genkeypair -v -keystore app/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          cp app/debug.keystore keystore/debug.keystore
-          cp app/debug.keystore app/keystore/debug.keystore
-          cp app/debug.keystore debug.keystore
-          echo "keyAlias=androiddebugkey" > keystore/keystore.properties
-          echo "keyPassword=android" >> keystore/keystore.properties
-          echo "storeFile=keystore/debug.keystore" >> keystore/keystore.properties
-          echo "storePassword=android" >> keystore/keystore.properties
-          cp keystore/keystore.properties keystore.properties
-          cp keystore/keystore.properties app/keystore.properties
-          cp keystore/keystore.properties app/keystore/keystore.properties
-
-      - name: Build APK
-        run: |
-          cd "$PROJECT_DIR"
-          chmod +x ./gradlew
-          ./gradlew assembleRelease || ./gradlew assembleDebug
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: SmsForwarder-v56-fix2-apk
-          path: |
-            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
+  steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
+  - name: Setup Java 17
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: 17
+  - name: Prepare Android SDK
+    run: |
+      set -e
+      rm -rf "$ANDROID_HOME/platforms/android-31" "$ANDROID_HOME/platforms/android-32" "$ANDROID_HOME/platforms/android-33" "$ANDROID_HOME/platforms/android-34" "$ANDROID_HOME/platforms/android-35" "$ANDROID_HOME/platforms/android-36" || true
+      rm -rf "$ANDROID_HOME/build-tools/31"* "$ANDROID_HOME/build-tools/32"* "$ANDROID_HOME/build-tools/33"* "$ANDROID_HOME/build-tools/34"* "$ANDROID_HOME/build-tools/35"* "$ANDROID_HOME/build-tools/36"* || true
+      yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"
+  - name: Setup Java 11
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: 11
+  - name: Unzip source
+    run: |
+      set -e
+      python3 - <<'PY'
+      from pathlib import Path
+      import zipfile
+      import shutil
+      import os
+      zips = []
+      for pattern in [
+          "00-*v56*.zip",
+          "00-*V56*.zip",
+          "*v56*.zip",
+          "*V56*.zip",
+          "*.zip"
+      ]:
+          zips.extend(sorted(Path(".").glob(pattern)))
+      if not zips:
+          raise SystemExit("ERROR: source zip not found")
+      source_zip = zips[0]
+      print("Using source zip:", source_zip)
+      out_dir = Path("source")
+      if out_dir.exists():
+          shutil.rmtree(out_dir)
+      out_dir.mkdir(parents=True, exist_ok=True)
+      with zipfile.ZipFile(source_zip, "r") as z:
+          z.extractall(out_dir)
+      gradlews = sorted(out_dir.glob("**/gradlew"))
+      if not gradlews:
+          raise SystemExit("ERROR: gradlew not found after unzip")
+      project_dir = gradlews[0].parent.resolve()
+      print("Project dir:", project_dir)
+      with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
+          f.write(f"PROJECT_DIR={project_dir}\n")
+      PY
+  - name: Create signing files
+    run: |
+      set -e
+      cd "$PROJECT_DIR"
+      rm -rf app/debug.keystore
+      rm -rf keystore/debug.keystore
+      rm -rf app/keystore/debug.keystore
+      rm -rf debug.keystore
+      rm -rf keystore
+      rm -rf app/keystore
+      mkdir -p keystore
+      mkdir -p app/keystore
+      keytool -genkeypair -v \
+        -keystore app/debug.keystore \
+        -storepass android \
+        -alias androiddebugkey \
+        -keypass android \
+        -keyalg RSA \
+        -keysize 2048 \
+        -validity 10000 \
+        -dname "CN=Android Debug,O=Android,C=US"
+      cp app/debug.keystore keystore/debug.keystore
+      cp app/debug.keystore app/keystore/debug.keystore
+      cp app/debug.keystore debug.keystore
+      cat > keystore/keystore.properties <<EOF
+      keyAlias=androiddebugkey
+      keyPassword=android
+      storeFile=keystore/debug.keystore
+      storePassword=android
+      EOF
+      cat > keystore.properties <<EOF
+      keyAlias=androiddebugkey
+      keyPassword=android
+      storeFile=keystore/debug.keystore
+      storePassword=android
+      EOF
+      cat > app/keystore.properties <<EOF
+      keyAlias=androiddebugkey
+      keyPassword=android
+      storeFile=debug.keystore
+      storePassword=android
+      EOF
+      cat > app/keystore/keystore.properties <<EOF
+      keyAlias=androiddebugkey
+      keyPassword=android
+      storeFile=debug.keystore
+      storePassword=android
+      EOF
+  - name: Build APK
+    run: |
+      set -e
+      cd "$PROJECT_DIR"
+      chmod +x ./gradlew
+      ./gradlew assembleRelease || ./gradlew assembleDebug
+  - name: Show APK size
+    run: |
+      set -e
+      cd "$PROJECT_DIR"
+      find app/build/outputs/apk -name "*.apk" -type f -exec ls -lh {} \;
+  - name: Upload APK
+    uses: actions/upload-artifact@v4
+    with:
+      name: SmsForwarder-v56-fix2-apk
+      path: |
+        ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
