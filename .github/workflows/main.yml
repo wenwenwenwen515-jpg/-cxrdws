@@ -1,7 +1,6 @@
 name: Build SmsForwarder v56 APK
 
-on:
-workflow_dispatch:
+on: [workflow_dispatch]
 
 jobs:
 build:
@@ -10,7 +9,7 @@ runs-on: ubuntu-latest
 steps:
   - name: Checkout repository
     uses: actions/checkout@v4
-  - name: Setup Java 17 for Android SDK
+  - name: Setup Java 17
     uses: actions/setup-java@v4
     with:
       distribution: temurin
@@ -21,7 +20,7 @@ steps:
       rm -rf "$ANDROID_HOME/platforms/android-31" "$ANDROID_HOME/platforms/android-32" "$ANDROID_HOME/platforms/android-33" "$ANDROID_HOME/platforms/android-34" "$ANDROID_HOME/platforms/android-35" "$ANDROID_HOME/platforms/android-36" || true
       rm -rf "$ANDROID_HOME/build-tools/31"* "$ANDROID_HOME/build-tools/32"* "$ANDROID_HOME/build-tools/33"* "$ANDROID_HOME/build-tools/34"* "$ANDROID_HOME/build-tools/35"* "$ANDROID_HOME/build-tools/36"* || true
       yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"
-  - name: Setup Java 11 for Gradle Build
+  - name: Setup Java 11
     uses: actions/setup-java@v4
     with:
       distribution: temurin
