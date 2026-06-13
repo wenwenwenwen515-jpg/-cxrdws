@@ -1,4 +1,4 @@
-name: Build SmsForwarder v56 Clean Bottom Apps APK
+name: Build SmsForwarder v56 Clean Bottom Apps Fix1 APK
 
 on: [workflow_dispatch]
 
@@ -35,6 +35,7 @@ jobs:
       import os
       zips = []
       for pattern in [
+          "00-*fix1*.zip",
           "00-*bottom-apps*.zip",
           "00-*clean*.zip",
           "00-*v56*.zip",
@@ -124,6 +125,6 @@ jobs:
   - name: Upload APK
     uses: actions/upload-artifact@v4
     with:
-      name: SmsForwarder-v56-clean-v2.0v56-apk
+      name: SmsForwarder-v56-clean-bottom-apps-fix1-apk
       path: |
         ${{ env.PROJECT_DIR }}/app/build/outputs/apk/**/*.apk
